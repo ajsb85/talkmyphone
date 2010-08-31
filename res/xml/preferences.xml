@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+  xmlns:android="http://schemas.android.com/apk/res/android">
+<EditTextPreference
+    android:key="serverHost"
+    android:defaultValue="jabber.org"
+    android:title="Phone Server Host" />
+<EditTextPreference
+    android:key="login"
+    android:title="Phone Login"
+    android:defaultValue="xxxx@jabber.org" />
+<EditTextPreference
+    android:key="password"
+    android:title="Phone password"
+    android:defaultValue="xxxx" />
+<EditTextPreference
+    android:key="recipient"
+    android:title="Your gmail address"
+    android:defaultValue="xxxx@gmail.com" />
+<CheckBoxPreference
+    android:title="Start at boot"
+    android:defaultValue="false"
+    android:summary=""
+    android:key="startAtBoot" />
+</PreferenceScreen>
