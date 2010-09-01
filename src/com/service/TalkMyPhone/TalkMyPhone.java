@@ -51,9 +51,8 @@ public class TalkMyPhone extends Service {
         Presence presence = new Presence(Presence.Type.available);
         m_connection.sendPacket(presence);
 
-        //Register packet listener
+        // Register packet listener
         PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
-
         m_connection.addPacketListener(new PacketListener() {
                 public void processPacket(Packet packet) {
                     Message message = (Message) packet;
@@ -62,20 +61,24 @@ public class TalkMyPhone extends Service {
                     }
                 }
             }, filter);
-        send(" ");
+
+        // Send welcome message
         send("Welcome to TalkMyPhone. Send \"?\" for getting help");
     }
 
-    private void _onStart(){
-        instance = this;
+    private void _onStart() {
         // Get configuration
-        getPrefs();
-        try {
-            initConnection();
-        } catch (XMPPException e) {
-            e.printStackTrace();
+        if (instance == null)
+        {
+            instance = this;
+            getPrefs();
+            try {
+                initConnection();
+            } catch (XMPPException e) {
+                e.printStackTrace();
+            }
+            Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
         }
-        Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
     }
 
     public static TalkMyPhone getInstance() {
@@ -131,7 +134,7 @@ public class TalkMyPhone extends Service {
         if (command.equals("?")) {
             send("TalkMyPhone does not currently support user interaction. See next versions!");
         } else {
-            send("Unknown command. Send \"?\" for getting help");
+            send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
         }
     }
 }
