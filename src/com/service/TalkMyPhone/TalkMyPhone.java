@@ -17,7 +17,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
-import android.provider.ContactsContract.PhoneLookup;
+import android.provider.Contacts;
 import android.widget.Toast;
 
 public class TalkMyPhone extends Service {
@@ -58,10 +58,12 @@ public class TalkMyPhone extends Service {
                 public void processPacket(Packet packet) {
                     Message message = (Message) packet;
                     if (message.getBody() != null) {
-                        send(message.getBody());
+                        onCommandReceived(message.getBody());
                     }
                 }
             }, filter);
+        send(" ");
+        send("Welcome to TalkMyPhone. Send \"?\" for getting help");
     }
 
     private void _onStart(){
@@ -92,17 +94,16 @@ public class TalkMyPhone extends Service {
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public void onStart(Intent intent, int startId) {
         _onStart();
-        return START_NOT_STICKY;
-    }
+    };
 
     @Override
     public void onDestroy() {
-        Toast.makeText(this, "TalkMyPhone stopped", Toast.LENGTH_SHORT).show();
         instance = null;
         m_connection.disconnect();
         m_connection = null;
+        Toast.makeText(this, "TalkMyPhone stopped", Toast.LENGTH_SHORT).show();
     }
 
     public void send(String message){
@@ -114,13 +115,23 @@ public class TalkMyPhone extends Service {
     public String getContactName (String phoneNumber) {
         String res = phoneNumber;
         ContentResolver resolver = getContentResolver();
-        Uri uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber));
-        Cursor c = resolver.query(uri, new String[]{PhoneLookup.DISPLAY_NAME}, null, null, null);
+        String[] projection = new String[] {
+                Contacts.Phones.DISPLAY_NAME,
+                Contacts.Phones.NUMBER };
+        Uri contactUri = Uri.withAppendedPath(Contacts.Phones.CONTENT_FILTER_URL, Uri.encode(phoneNumber));
+        Cursor c = resolver.query(contactUri, projection, null, null, null);
         if (c.moveToFirst()) {
-            String name = c.getString(c.getColumnIndex(PhoneLookup.DISPLAY_NAME));
+            String name = c.getString(c.getColumnIndex(Contacts.Phones.DISPLAY_NAME));
             res = name;
         }
         return res;
     }
 
+    private void onCommandReceived(String command) {
+        if (command.equals("?")) {
+            send("TalkMyPhone does not currently support user interaction. See next versions!");
+        } else {
+            send("Unknown command. Send \"?\" for getting help");
+        }
+    }
 }
