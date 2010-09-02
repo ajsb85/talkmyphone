@@ -1,4 +1,6 @@
-package com.service.TalkMyPhone;
+package com.googlecode.talkmyphone;
+
+import com.googlecode.talkmyphone.R;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;

@@ -1,4 +1,4 @@
-package com.service.TalkMyPhone;
+package com.googlecode.talkmyphone;
 
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;

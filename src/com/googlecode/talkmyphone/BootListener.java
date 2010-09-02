@@ -1,4 +1,4 @@
-package com.service.TalkMyPhone;
+package com.googlecode.talkmyphone;
 
 import android.content.BroadcastReceiver;
 import android.content.Intent;

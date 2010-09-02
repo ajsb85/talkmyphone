@@ -1,4 +1,4 @@
-package com.service.TalkMyPhone;
+package com.googlecode.talkmyphone;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
@@ -10,6 +10,7 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentResolver;
 import android.content.Intent;
@@ -18,6 +19,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.Contacts;
+import android.telephony.gsm.SmsManager;
 import android.widget.Toast;
 
 public class TalkMyPhone extends Service {
@@ -131,10 +133,39 @@ public class TalkMyPhone extends Service {
     }
 
     private void onCommandReceived(String command) {
+        Boolean validCommand = false;
         if (command.equals("?")) {
-            send("TalkMyPhone does not currently support user interaction. See next versions!");
-        } else {
+            validCommand = true;
+            StringBuilder builder = new StringBuilder();
+            builder.append("Available commands:\n");
+            builder.append("- \"?\" : help.\n");
+            builder.append("- \"sms:number:message\": sends a sms to number with content message.\n");
+            send(builder.toString());
+        }
+        if (command.startsWith("sms")) {
+            validCommand = true;
+            String[] sms = command.split(":");
+            String phoneNumber = sms[1];
+            StringBuilder builder = new StringBuilder();
+            for (int i = 2; i < sms.length; i++) {
+                builder.append(sms[i]);
+                if (i <= sms.length) {
+                    builder.append(":");
+                }
+            }
+            String message = builder.toString();
+            sendSMS(message, phoneNumber);
+            send("Sms sent.");
+        }
+        if (!validCommand) {
             send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
         }
+    }
+
+    public void sendSMS(String message, String phoneNumber) {
+        PendingIntent pi = PendingIntent.getActivity(this, 0,
+                new Intent(this, TalkMyPhone.class), 0);
+        SmsManager sms = SmsManager.getDefault();
+        sms.sendTextMessage(phoneNumber, null, message, pi, null);
     }
 }

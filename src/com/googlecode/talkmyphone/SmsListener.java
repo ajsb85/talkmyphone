@@ -1,4 +1,4 @@
-package com.service.TalkMyPhone;
+package com.googlecode.talkmyphone;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,23 +13,23 @@ public class SmsListener extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Bundle bundle = intent.getExtras();
         SmsMessage[] msgs = null;
-        String str = "";
         if (bundle != null)
         {
             TalkMyPhone service = TalkMyPhone.getInstance();
             if (service != null)
             {
+                StringBuilder builder = new StringBuilder();
                 Object[] pdus = (Object[]) bundle.get("pdus");
                 msgs = new SmsMessage[pdus.length];
                 for (int i=0; i<msgs.length; i++) {
                     msgs[i] = SmsMessage.createFromPdu((byte[])pdus[i]);
-                    str += "SMS from ";
-                    str += service.getContactName(msgs[i].getOriginatingAddress());
-                    str += ": ";
-                    str += msgs[i].getMessageBody().toString();
-                    str += "\n";
+                    builder.append("SMS from");
+                    builder.append(service.getContactName(msgs[i].getOriginatingAddress()));
+                    builder.append(": ");
+                    builder.append(msgs[i].getMessageBody().toString());
+                    builder.append("\n");
                 }
-                service.send(str);
+                service.send(builder.toString());
             }
         }
     }
