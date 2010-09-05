@@ -13,10 +13,15 @@ import org.jivesoftware.smack.packet.Presence;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Contacts;
 import android.telephony.gsm.SmsManager;
@@ -33,6 +38,17 @@ public class TalkMyPhone extends Service {
     private XMPPConnection m_connection = null;
     private static TalkMyPhone instance = null;
 
+    // GeoLocalisation stuff;
+    private LocationManager locationManager = null;
+    private LocationListener locationListener = new LocationListener() {
+        public void onLocationChanged(Location location) {
+              sendLocationUpdate(location);
+            }
+        public void onProviderEnabled(String provider) {}
+        public void onProviderDisabled(String provider) {}
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
+    };
+
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
         SERVER_HOST = prefs.getString("serverHost", "jabber.org");
@@ -41,6 +57,10 @@ public class TalkMyPhone extends Service {
         LOGIN = prefs.getString("login", "xxxx@jabber.org");
         PASSWORD =  prefs.getString("password", "xxxx");
         TO = prefs.getString("recipient", "xxxx@gmail.com");
+    }
+
+    private void initGeoLocalisationStuff() {
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
     }
 
     private void initConnection() throws XMPPException {
@@ -74,6 +94,7 @@ public class TalkMyPhone extends Service {
         {
             instance = this;
             getPrefs();
+            initGeoLocalisationStuff();
             try {
                 initConnection();
             } catch (XMPPException e) {
@@ -138,8 +159,9 @@ public class TalkMyPhone extends Service {
             validCommand = true;
             StringBuilder builder = new StringBuilder();
             builder.append("Available commands:\n");
-            builder.append("- \"?\" : help.\n");
+            builder.append("- \"?\": shows this help.\n");
             builder.append("- \"sms:number:message\": sends a sms to number with content message.\n");
+            builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
             send(builder.toString());
         }
         if (command.startsWith("sms")) {
@@ -157,6 +179,16 @@ public class TalkMyPhone extends Service {
             sendSMS(message, phoneNumber);
             send("Sms sent.");
         }
+        if (command.equals("where")) {
+            validCommand = true;
+            send("Start locating phone");
+            startLocatingPhone();
+        }
+        if (command.equals("stop")) {
+            validCommand = true;
+            send("Stop locating phone");
+            stopLocatingPhone();
+        }
         if (!validCommand) {
             send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
         }
@@ -167,5 +199,30 @@ public class TalkMyPhone extends Service {
                 new Intent(this, TalkMyPhone.class), 0);
         SmsManager sms = SmsManager.getDefault();
         sms.sendTextMessage(phoneNumber, null, message, pi, null);
+    }
+
+    private void startLocatingPhone() {
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        send("last network location");
+        sendLocationUpdate(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
+        send("last gps location");
+        sendLocationUpdate(locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
+    }
+
+    private void stopLocatingPhone() {
+        locationManager.removeUpdates(locationListener);
+    }
+
+    private void sendLocationUpdate(Location location) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Location found.\n");
+        builder.append("accuracy: " + location.getAccuracy() + "meters \n");
+        builder.append("altitude: " + location.getAltitude() + "\n");
+        builder.append("speed:" + location.getSpeed());
+        builder.append("provided by: " + location.getProvider() + "\n");
+        builder.append("http://maps.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude() + "\n");
+
+        send(builder.toString());
     }
 }
