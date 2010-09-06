@@ -195,19 +195,19 @@ public class TalkMyPhone extends Service {
             stopLocatingPhone();
         }
         if (command.equals("ring")) {
-        	validCommand = true;
-        	send("Ringing phone");
-        	try {
-				ring();
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
-			} catch (SecurityException e) {
-				e.printStackTrace();
-			} catch (IllegalStateException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+            validCommand = true;
+            send("Ringing phone");
+            try {
+                ring();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         if (!validCommand) {
             send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
@@ -245,18 +245,18 @@ public class TalkMyPhone extends Service {
 
         send(builder.toString());
     }
-    
+
     private void ring() throws IllegalArgumentException, SecurityException, IllegalStateException, IOException {
-    	 Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM); 
-    	 MediaPlayer mMediaPlayer = new MediaPlayer();
+         Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+         MediaPlayer mMediaPlayer = new MediaPlayer();
          mMediaPlayer.setDataSource(this, alert);
-    	 final AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
-    	 if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
-    	            mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-    	            mMediaPlayer.setLooping(true);
-					mMediaPlayer.prepare();
-    	            mMediaPlayer.start();
-    	  }
+         final AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+         if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
+                    mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                    mMediaPlayer.setLooping(true);
+                    mMediaPlayer.prepare();
+                    mMediaPlayer.start();
+          }
 
     }
 }
