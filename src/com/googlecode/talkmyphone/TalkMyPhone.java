@@ -19,14 +19,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Contacts;
 import android.telephony.gsm.SmsManager;
@@ -43,17 +39,6 @@ public class TalkMyPhone extends Service {
     private XMPPConnection m_connection = null;
     private static TalkMyPhone instance = null;
 
-    // GeoLocalisation stuff;
-    private LocationManager locationManager = null;
-    private LocationListener locationListener = new LocationListener() {
-        public void onLocationChanged(Location location) {
-              sendLocationUpdate(location);
-            }
-        public void onProviderEnabled(String provider) {}
-        public void onProviderDisabled(String provider) {}
-        public void onStatusChanged(String provider, int status, Bundle extras) {}
-    };
-
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
         SERVER_HOST = prefs.getString("serverHost", "jabber.org");
@@ -62,10 +47,6 @@ public class TalkMyPhone extends Service {
         LOGIN = prefs.getString("login", "xxxx@jabber.org");
         PASSWORD =  prefs.getString("password", "xxxx");
         TO = prefs.getString("recipient", "xxxx@gmail.com");
-    }
-
-    private void initGeoLocalisationStuff() {
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
     }
 
     private void initConnection() throws XMPPException {
@@ -99,7 +80,6 @@ public class TalkMyPhone extends Service {
         {
             instance = this;
             getPrefs();
-            initGeoLocalisationStuff();
             try {
                 initConnection();
             } catch (XMPPException e) {
@@ -222,28 +202,13 @@ public class TalkMyPhone extends Service {
     }
 
     private void startLocatingPhone() {
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-        send("last network location");
-        sendLocationUpdate(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
-        send("last gps location");
-        sendLocationUpdate(locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
+        Intent intent = new Intent(this, LocationService.class);
+        startService(intent);
     }
 
     private void stopLocatingPhone() {
-        locationManager.removeUpdates(locationListener);
-    }
-
-    private void sendLocationUpdate(Location location) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Location found.\n");
-        builder.append("accuracy: " + location.getAccuracy() + "meters \n");
-        builder.append("altitude: " + location.getAltitude() + "\n");
-        builder.append("speed:" + location.getSpeed());
-        builder.append("provided by: " + location.getProvider() + "\n");
-        builder.append("http://maps.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude() + "\n");
-
-        send(builder.toString());
+        Intent intent = new Intent(this, LocationService.class);
+        stopService(intent);
     }
 
     private void ring() throws IllegalArgumentException, SecurityException, IllegalStateException, IOException {

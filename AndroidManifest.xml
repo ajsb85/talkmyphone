@@ -19,6 +19,7 @@
                 <action android:name=".TalkMyPhone.ACTION" />
             </intent-filter>
         </service>
+        <service android:enabled="true" android:name=".LocationService" />
         <receiver android:name=".BootListener">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
