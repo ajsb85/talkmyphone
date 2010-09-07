@@ -12,11 +12,14 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioManager;
@@ -40,6 +43,8 @@ public class TalkMyPhone extends Service {
     private static TalkMyPhone instance = null;
     private MediaPlayer mMediaPlayer;
     private String lastRecipient = null;
+    PendingIntent sentPI = null;
+    PendingIntent deliveredPI = null;
 
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
@@ -49,6 +54,58 @@ public class TalkMyPhone extends Service {
         LOGIN = prefs.getString("login", "xxxx@jabber.org");
         PASSWORD =  prefs.getString("password", "xxxx");
         TO = prefs.getString("recipient", "xxxx@gmail.com");
+    }
+
+    private void initSmsMonitors() {
+        String SENT = "SMS_SENT";
+        String DELIVERED = "SMS_DELIVERED";
+
+        sentPI = PendingIntent.getBroadcast(this, 0,
+            new Intent(SENT), 0);
+
+        deliveredPI = PendingIntent.getBroadcast(this, 0,
+            new Intent(DELIVERED), 0);
+
+        //---when the SMS has been sent---
+        registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                switch (getResultCode())
+                {
+                    case Activity.RESULT_OK:
+                        send("SMS sent");
+                        break;
+                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                        send("Generic failure");
+                        break;
+                    case SmsManager.RESULT_ERROR_NO_SERVICE:
+                        send("No service");
+                        break;
+                    case SmsManager.RESULT_ERROR_NULL_PDU:
+                        send("Null PDU");
+                        break;
+                    case SmsManager.RESULT_ERROR_RADIO_OFF:
+                        send("Radio off");
+                        break;
+                }
+            }
+        }, new IntentFilter(SENT));
+
+        //---when the SMS has been delivered---
+        registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                switch (getResultCode())
+                {
+                    case Activity.RESULT_OK:
+                        send("SMS delivered");
+                        break;
+                    case Activity.RESULT_CANCELED:
+                        send("SMS not delivered");
+                        break;
+                }
+            }
+        }, new IntentFilter(DELIVERED));
     }
 
     private void initConnection() throws XMPPException {
@@ -81,8 +138,9 @@ public class TalkMyPhone extends Service {
         if (instance == null)
         {
             instance = this;
-            mMediaPlayer = new MediaPlayer();
             getPrefs();
+            initSmsMonitors();
+            mMediaPlayer = new MediaPlayer();
             try {
                 initConnection();
             } catch (XMPPException e) {
@@ -152,46 +210,26 @@ public class TalkMyPhone extends Service {
             StringBuilder builder = new StringBuilder();
             builder.append("Available commands:\n");
             builder.append("- \"?\": shows this help.\n");
-            builder.append("- \"sms:number:message\": sends a sms to number with content message.\n");
             builder.append("- \"reply:message\": send a sms to your last recipient with content message.\n");
+            builder.append("- \"sms:number:message\": sends a sms to number with content message.\n");
             builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
             builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
-
             send(builder.toString());
         }
         if (command.startsWith("sms")) {
             validCommand = true;
-            String[] sms = command.split(":");
-            String phoneNumber = sms[1];
-            setLastRecipient(phoneNumber);
-            StringBuilder builder = new StringBuilder();
-            for (int i = 2; i < sms.length - 1; i++) {
-                builder.append(sms[i]);
-                if (i < (sms.length - 1)) {
-                    builder.append(":");
-                }
-            }
-            String message = builder.toString();
+            String tmp = command.replaceFirst("sms:", "");
+            String phoneNumber = tmp.substring(0, command.indexOf(":") + 1);
+            String message = tmp.replaceFirst((phoneNumber + ":"), "");
             sendSMS(message, phoneNumber);
-            send("Sms sent to " + getContactName(phoneNumber));
         }
         if (command.startsWith("reply")) {
             validCommand = true;
             if (lastRecipient == null) {
                 send("Error: no recipient registered.");
             } else {
-                String[] sms = command.split(":");
-                String phoneNumber = lastRecipient;
-                StringBuilder builder = new StringBuilder();
-                for (int i = 1; i < sms.length; i++) {
-                    builder.append(sms[i]);
-                    if (i < (sms.length - 1)) {
-                        builder.append(":");
-                    }
-                }
-                String message = builder.toString();
-                sendSMS(message, phoneNumber);
-                send("Sms sent to " + getContactName(lastRecipient));
+                String message = command.replaceFirst("reply:", "");
+                sendSMS(message, lastRecipient);
             }
         }
         if (command.equals("where")) {
@@ -201,9 +239,8 @@ public class TalkMyPhone extends Service {
         }
         if (command.equals("stop")) {
             validCommand = true;
-            send("Stop locating phone");
+            send("Stopping ongoing actions");
             stopLocatingPhone();
-            send("Stop ringing");
             stopRinging();
         }
         if (command.equals("ring")) {
@@ -217,10 +254,9 @@ public class TalkMyPhone extends Service {
     }
 
     public void sendSMS(String message, String phoneNumber) {
-        PendingIntent pi = PendingIntent.getActivity(this, 0,
-                new Intent(this, TalkMyPhone.class), 0);
+        send("Sending sms to " + getContactName(phoneNumber));
         SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(phoneNumber, null, message, pi, null);
+        sms.sendTextMessage(phoneNumber, null, message, sentPI, deliveredPI);
     }
 
     private void startLocatingPhone() {
@@ -245,20 +281,17 @@ public class TalkMyPhone extends Service {
                         mMediaPlayer.start();
             }
         } catch (IllegalArgumentException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (SecurityException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (IllegalStateException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
 
+    // Stops the phone from ringing
     private void stopRinging() {
         mMediaPlayer.stop();
     }
