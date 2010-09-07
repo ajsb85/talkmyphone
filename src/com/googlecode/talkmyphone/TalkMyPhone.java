@@ -218,9 +218,10 @@ public class TalkMyPhone extends Service {
         }
         if (command.startsWith("sms")) {
             validCommand = true;
-            String tmp = command.replaceFirst("sms:", "");
-            String phoneNumber = tmp.substring(0, command.indexOf(":") + 1);
-            String message = tmp.replaceFirst((phoneNumber + ":"), "");
+            String tmp = command.substring(command.indexOf(":") + 1);
+            String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
+            setLastRecipient(phoneNumber);
+            String message = tmp.substring(tmp.indexOf(":") + 1);
             sendSMS(message, phoneNumber);
         }
         if (command.startsWith("reply")) {
@@ -228,7 +229,7 @@ public class TalkMyPhone extends Service {
             if (lastRecipient == null) {
                 send("Error: no recipient registered.");
             } else {
-                String message = command.replaceFirst("reply:", "");
+                String message = command.substring(command.indexOf(":") + 1);
                 sendSMS(message, lastRecipient);
             }
         }
