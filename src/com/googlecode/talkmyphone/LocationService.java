@@ -16,11 +16,12 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.util.Log;
 
 public class LocationService extends Service {
 
-    LocationManager locationManager;
+    LocationManager locationManager = null;
+    LocationListener locationListener = null;
+
     @Override
     public IBinder onBind(Intent arg0) {
         return null;
@@ -39,11 +40,9 @@ public class LocationService extends Service {
         String allowedLocationProviders =
             Settings.System.getString(getContentResolver(),
             Settings.System.LOCATION_PROVIDERS_ALLOWED);
-
         if (allowedLocationProviders == null) {
             allowedLocationProviders = "";
         }
-
         return allowedLocationProviders.contains(LocationManager.GPS_PROVIDER);
     }
 
@@ -52,14 +51,11 @@ public class LocationService extends Service {
         String allowedLocationProviders =
             Settings.System.getString(getContentResolver(),
             Settings.System.LOCATION_PROVIDERS_ALLOWED);
-
         if (allowedLocationProviders == null) {
             allowedLocationProviders = "";
         }
-
         boolean networkProviderStatus =
             allowedLocationProviders.contains(LocationManager.NETWORK_PROVIDER);
-
         allowedLocationProviders = "";
         if (networkProviderStatus == true) {
             allowedLocationProviders += LocationManager.NETWORK_PROVIDER;
@@ -67,20 +63,15 @@ public class LocationService extends Service {
         if (pNewGPSStatus == true) {
             allowedLocationProviders += "," + LocationManager.GPS_PROVIDER;
         }
-
         Settings.System.putString(getContentResolver(),
             Settings.System.LOCATION_PROVIDERS_ALLOWED, allowedLocationProviders);
-
-        try
-        {
+        try {
             Method m =
                 locationManager.getClass().getMethod("updateProviders", new Class[] {});
             m.setAccessible(true);
             m.invoke(locationManager, new Object[]{});
         }
-        catch(Exception e)
-        {
-            Log.e("%s:%s", e.getClass().getName());
+        catch(Exception e) {
         }
         return;
     }
@@ -98,31 +89,23 @@ public class LocationService extends Service {
 
     public void onStart(final Intent intent, int startId) {
        super.onStart(intent, startId);
-       try{
-            if( ! getGPSStatus() )
+       try {
+            if(!getGPSStatus())
                 setGPSStatus(true);
-            }
-       catch(Exception e)
-        {
-            Log.e("%s:%s", e.getClass().getName());
-        }
-       LocationListener locationListener = new LocationListener() {
+       }
+       catch(Exception e) {
+       }
+       locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 sendLocationUpdate(location);
-
                 locationManager.removeUpdates(this);
             }
 
-            public void onStatusChanged(String arg0, int arg1, Bundle arg2) {
-                // TODO Auto-generated method stub
+            public void onStatusChanged(String arg0, int arg1, Bundle arg2) {}
 
-            }
+            public void onProviderDisabled(String arg0) {}
 
-            public void onProviderDisabled(String arg0) {
-            }
-
-            public void onProviderEnabled(String arg0) {
-            }
+            public void onProviderEnabled(String arg0) {}
         };
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
@@ -136,6 +119,11 @@ public class LocationService extends Service {
     }
 
     public void onDestroy() {
+        if (locationManager != null && locationListener != null) {
+            locationManager.removeUpdates(locationListener);
+            locationManager = null;
+            locationListener = null;
+        }
     }
 
 }
