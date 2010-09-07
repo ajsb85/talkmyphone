@@ -21,10 +21,10 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.Contacts;
+import android.provider.Settings;
 import android.telephony.gsm.SmsManager;
 import android.widget.Toast;
 
@@ -38,6 +38,8 @@ public class TalkMyPhone extends Service {
     private String TO;
     private XMPPConnection m_connection = null;
     private static TalkMyPhone instance = null;
+    private MediaPlayer mMediaPlayer;
+    private String lastRecipient = null;
 
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
@@ -79,6 +81,7 @@ public class TalkMyPhone extends Service {
         if (instance == null)
         {
             instance = this;
+            mMediaPlayer = new MediaPlayer();
             getPrefs();
             try {
                 initConnection();
@@ -138,6 +141,10 @@ public class TalkMyPhone extends Service {
         return res;
     }
 
+    public void setLastRecipient(String phoneNumber) {
+        lastRecipient = phoneNumber;
+    }
+
     private void onCommandReceived(String command) {
         Boolean validCommand = false;
         if (command.equals("?")) {
@@ -146,23 +153,46 @@ public class TalkMyPhone extends Service {
             builder.append("Available commands:\n");
             builder.append("- \"?\": shows this help.\n");
             builder.append("- \"sms:number:message\": sends a sms to number with content message.\n");
-            builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
+            builder.append("- \"reply:message\": send a sms to your last recipient with content message.\n");
+            builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
+            builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
+
             send(builder.toString());
         }
         if (command.startsWith("sms")) {
             validCommand = true;
             String[] sms = command.split(":");
             String phoneNumber = sms[1];
+            setLastRecipient(phoneNumber);
             StringBuilder builder = new StringBuilder();
-            for (int i = 2; i < sms.length; i++) {
+            for (int i = 2; i < sms.length - 1; i++) {
                 builder.append(sms[i]);
-                if (i <= sms.length) {
+                if (i < (sms.length - 1)) {
                     builder.append(":");
                 }
             }
             String message = builder.toString();
             sendSMS(message, phoneNumber);
-            send("Sms sent.");
+            send("Sms sent to " + getContactName(phoneNumber));
+        }
+        if (command.startsWith("reply")) {
+            validCommand = true;
+            if (lastRecipient == null) {
+                send("Error: no recipient registered.");
+            } else {
+                String[] sms = command.split(":");
+                String phoneNumber = lastRecipient;
+                StringBuilder builder = new StringBuilder();
+                for (int i = 1; i < sms.length; i++) {
+                    builder.append(sms[i]);
+                    if (i < (sms.length - 1)) {
+                        builder.append(":");
+                    }
+                }
+                String message = builder.toString();
+                sendSMS(message, phoneNumber);
+                send("Sms sent to " + getContactName(lastRecipient));
+            }
         }
         if (command.equals("where")) {
             validCommand = true;
@@ -173,21 +203,13 @@ public class TalkMyPhone extends Service {
             validCommand = true;
             send("Stop locating phone");
             stopLocatingPhone();
+            send("Stop ringing");
+            stopRinging();
         }
         if (command.equals("ring")) {
             validCommand = true;
             send("Ringing phone");
-            try {
-                ring();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (SecurityException e) {
-                e.printStackTrace();
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            ring();
         }
         if (!validCommand) {
             send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
@@ -211,17 +233,33 @@ public class TalkMyPhone extends Service {
         stopService(intent);
     }
 
-    private void ring() throws IllegalArgumentException, SecurityException, IllegalStateException, IOException {
-         Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-         MediaPlayer mMediaPlayer = new MediaPlayer();
-         mMediaPlayer.setDataSource(this, alert);
-         final AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
-         if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
-                    mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-                    mMediaPlayer.setLooping(true);
-                    mMediaPlayer.prepare();
-                    mMediaPlayer.start();
-          }
+    private void ring() {
+        Uri alert = Settings.System.DEFAULT_RINGTONE_URI ;
+        try {
+            mMediaPlayer.setDataSource(this, alert);
+            final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
+                        mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                        mMediaPlayer.setLooping(true);
+                        mMediaPlayer.prepare();
+                        mMediaPlayer.start();
+            }
+        } catch (IllegalArgumentException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (SecurityException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IllegalStateException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
 
+    private void stopRinging() {
+        mMediaPlayer.stop();
     }
 }
