@@ -78,12 +78,12 @@ public class LocationService extends Service {
 
     public void sendLocationUpdate(Location location) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Location found.\n");
-        builder.append("accuracy: " + location.getAccuracy() + "meters \n");
-        builder.append("altitude: " + location.getAltitude() + "\n");
-        builder.append("speed:" + location.getSpeed() + "\n");
-        builder.append("provided by: " + location.getProvider() + "\n");
-        builder.append("http://maps.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude() + "\n");
+        builder.append("Location updated: ");
+        builder.append("http://maps.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude() + " (");
+        builder.append("accuracy: " + location.getAccuracy() + "m ");
+        builder.append("altitude: " + location.getAltitude() + " ");
+        builder.append("speed: " + location.getSpeed() + "m/s ");
+        builder.append("provider: " + location.getProvider() + ")");
         TalkMyPhone.getInstance().send(builder.toString());
     }
 
@@ -98,7 +98,6 @@ public class LocationService extends Service {
        locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 sendLocationUpdate(location);
-                locationManager.removeUpdates(this);
             }
 
             public void onStatusChanged(String arg0, int arg1, Bundle arg2) {}
@@ -109,12 +108,16 @@ public class LocationService extends Service {
         };
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
 
         Location location = locationManager.getLastKnownLocation("gps");
         if (location == null)
+        {
             location = locationManager.getLastKnownLocation("network");
-        if (location != null){
-            sendLocationUpdate(location);
+            if (location != null) {
+                TalkMyPhone.getInstance().send("Last known location:");
+                sendLocationUpdate(location);
+            }
         }
     }
 
@@ -125,5 +128,4 @@ public class LocationService extends Service {
             locationListener = null;
         }
     }
-
 }
