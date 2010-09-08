@@ -123,8 +123,10 @@ public class TalkMyPhone extends Service {
         m_connection.addPacketListener(new PacketListener() {
                 public void processPacket(Packet packet) {
                     Message message = (Message) packet;
-                    if (message.getBody() != null) {
-                        onCommandReceived(message.getBody());
+                    if (message.getFrom().startsWith(TO)) {
+                        if (message.getBody() != null) {
+                            onCommandReceived(message.getBody());
+                        }
                     }
                 }
             }, filter);
