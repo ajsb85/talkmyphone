@@ -12,7 +12,7 @@
 <EditTextPreference
     android:key="password"
     android:title="Phone password"
-    android:defaultValue="xxxx" />
+    android:password="true" />
 <EditTextPreference
     android:key="recipient"
     android:title="Your gmail address"
