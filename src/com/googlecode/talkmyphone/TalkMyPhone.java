@@ -1,6 +1,7 @@
 package com.googlecode.talkmyphone;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
@@ -259,7 +260,10 @@ public class TalkMyPhone extends Service {
     public void sendSMS(String message, String phoneNumber) {
         send("Sending sms to " + getContactName(phoneNumber));
         SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(phoneNumber, null, message, sentPI, deliveredPI);
+        ArrayList<String> messages = sms.divideMessage(message);
+        for (int i=0; i < messages.size(); i++) {
+            sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
+        }
     }
 
     private void startLocatingPhone() {
