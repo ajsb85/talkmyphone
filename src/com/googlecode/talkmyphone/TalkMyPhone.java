@@ -18,6 +18,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -263,6 +264,7 @@ public class TalkMyPhone extends Service {
         ArrayList<String> messages = sms.divideMessage(message);
         for (int i=0; i < messages.size(); i++) {
             sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
+            addSmsToOutbox(message, phoneNumber);
         }
     }
 
@@ -301,5 +303,13 @@ public class TalkMyPhone extends Service {
     // Stops the phone from ringing
     private void stopRinging() {
         mMediaPlayer.stop();
+    }
+
+    private void addSmsToOutbox(String message, String phoneNumber) {
+        ContentValues values = new ContentValues();
+        values.put("address", phoneNumber);
+        values.put("date", System.currentTimeMillis());
+        values.put("body", message);
+        getContentResolver().insert(Uri.parse("content://sms/outbox"), values);
     }
 }
