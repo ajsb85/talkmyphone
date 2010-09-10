@@ -4,6 +4,6 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
-<Button android:text="Start/Stop TalkMyPhone" android:id="@+id/StartStop" android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
-<Button android:text="TalkMyPhone Preferences" android:id="@+id/Preferences" android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+<Button android:text="Start/Stop TalkMyPhone" android:id="@+id/StartStop" android:layout_height="wrap_content" android:layout_width="fill_parent"></Button>
+<Button android:text="TalkMyPhone Preferences" android:id="@+id/Preferences" android:layout_height="wrap_content" android:layout_width="fill_parent"></Button>
 </LinearLayout>

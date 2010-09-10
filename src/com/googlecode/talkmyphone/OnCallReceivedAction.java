@@ -3,7 +3,7 @@ package com.googlecode.talkmyphone;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-public class MyPhoneStateListener extends PhoneStateListener {
+public class OnCallReceivedAction extends PhoneStateListener {
 
     public void onCallStateChanged(int state,String incomingNumber) {
         switch(state) {
@@ -12,7 +12,7 @@ public class MyPhoneStateListener extends PhoneStateListener {
             case TelephonyManager.CALL_STATE_OFFHOOK:
                 break;
             case TelephonyManager.CALL_STATE_RINGING:
-                TalkMyPhone service = TalkMyPhone.getInstance();
+                XmppService service = XmppService.getInstance();
                 if (service != null) {
                     String contact = service.getContactName(incomingNumber);
                     service.send(contact + " is calling");

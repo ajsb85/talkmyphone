@@ -5,7 +5,7 @@
     android:versionName="1.6-beta">
     <uses-sdk android:minSdkVersion="3" />
     <application android:icon="@drawable/icon" android:label="@string/app_name">
-        <activity android:name=".Main"
+        <activity android:name=".MainScreen"
                   android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -15,7 +15,7 @@
         <activity android:name=".Preferences"
                   android:label="@string/set_preferences">
         </activity>
-        <service android:enabled="true" android:name=".TalkMyPhone">
+        <service android:enabled="true" android:name=".XmppService">
             <intent-filter>
                 <action android:name=".TalkMyPhone.ACTION" />
             </intent-filter>

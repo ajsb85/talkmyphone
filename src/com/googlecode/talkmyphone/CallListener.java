@@ -10,7 +10,7 @@ public class CallListener extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        MyPhoneStateListener phoneListener = new MyPhoneStateListener();
+        OnCallReceivedAction phoneListener = new OnCallReceivedAction();
         TelephonyManager telephony = (TelephonyManager)
         context.getSystemService(Context.TELEPHONY_SERVICE);
         telephony.listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE);

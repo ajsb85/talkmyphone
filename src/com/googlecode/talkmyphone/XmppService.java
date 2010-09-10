@@ -33,7 +33,7 @@ import android.provider.Settings;
 import android.telephony.gsm.SmsManager;
 import android.widget.Toast;
 
-public class TalkMyPhone extends Service {
+public class XmppService extends Service {
 
     private String SERVER_HOST;
     private int SERVER_PORT;
@@ -42,7 +42,7 @@ public class TalkMyPhone extends Service {
     private String PASSWORD;
     private String TO;
     private XMPPConnection m_connection = null;
-    private static TalkMyPhone instance = null;
+    private static XmppService instance = null;
     private MediaPlayer mMediaPlayer;
     private String lastRecipient = null;
     PendingIntent sentPI = null;
@@ -61,14 +61,10 @@ public class TalkMyPhone extends Service {
     private void initSmsMonitors() {
         String SENT = "SMS_SENT";
         String DELIVERED = "SMS_DELIVERED";
-
         sentPI = PendingIntent.getBroadcast(this, 0,
             new Intent(SENT), 0);
-
         deliveredPI = PendingIntent.getBroadcast(this, 0,
             new Intent(DELIVERED), 0);
-
-        //---when the SMS has been sent---
         registerReceiver(new BroadcastReceiver(){
             @Override
             public void onReceive(Context arg0, Intent arg1) {
@@ -92,8 +88,6 @@ public class TalkMyPhone extends Service {
                 }
             }
         }, new IntentFilter(SENT));
-
-        //---when the SMS has been delivered---
         registerReceiver(new BroadcastReceiver(){
             @Override
             public void onReceive(Context arg0, Intent arg1) {
@@ -168,7 +162,7 @@ public class TalkMyPhone extends Service {
         }
     }
 
-    public static TalkMyPhone getInstance() {
+    public static XmppService getInstance() {
         return instance;
     }
 

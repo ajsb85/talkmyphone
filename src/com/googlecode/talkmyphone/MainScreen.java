@@ -9,7 +9,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 
-public class Main extends Activity {
+public class MainScreen extends Activity {
 
     /** Called when the activity is first created. */
     @Override
@@ -30,7 +30,7 @@ public class Main extends Activity {
         startStopButton.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     Intent intent = new Intent(".TalkMyPhone.ACTION");
-                    if (TalkMyPhone.getInstance() == null) {
+                    if (XmppService.getInstance() == null) {
                         startService(intent);
                     }
                     else {

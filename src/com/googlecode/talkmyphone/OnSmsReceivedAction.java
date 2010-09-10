@@ -7,7 +7,7 @@ import android.os.Bundle;
 import android.telephony.gsm.SmsMessage;
 
 
-public class SmsListener extends BroadcastReceiver {
+public class OnSmsReceivedAction extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -15,7 +15,7 @@ public class SmsListener extends BroadcastReceiver {
         SmsMessage[] msgs = null;
         if (bundle != null)
         {
-            TalkMyPhone service = TalkMyPhone.getInstance();
+            XmppService service = XmppService.getInstance();
             if (service != null)
             {
                 StringBuilder builder = new StringBuilder();
