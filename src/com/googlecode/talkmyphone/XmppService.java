@@ -310,6 +310,6 @@ public class XmppService extends Service {
         values.put("address", phoneNumber);
         values.put("date", System.currentTimeMillis());
         values.put("body", message);
-        getContentResolver().insert(Uri.parse("content://sms/outbox"), values);
+        getContentResolver().insert(Uri.parse("content://sms/sent"), values);
     }
 }
