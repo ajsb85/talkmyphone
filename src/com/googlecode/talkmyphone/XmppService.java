@@ -47,7 +47,14 @@ public class XmppService extends Service {
     private String lastRecipient = null;
     PendingIntent sentPI = null;
     PendingIntent deliveredPI = null;
-
+    private BroadcastReceiver mBatInfoReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(Context arg0, Intent intent) {
+          int level = intent.getIntExtra("level", 0);
+          send("Battery level "+String.valueOf(level)+"%");
+        }
+    };
+    
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
         SERVER_HOST = prefs.getString("serverHost", "jabber.org");
@@ -158,6 +165,7 @@ public class XmppService extends Service {
             } catch (XMPPException e) {
                 e.printStackTrace();
             }
+            registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
             Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
         }
     }
