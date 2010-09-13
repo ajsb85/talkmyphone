@@ -6,6 +6,8 @@ import java.util.Date;
 import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -31,6 +33,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.location.Address;
+import android.location.Geocoder;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -316,8 +320,11 @@ public class XmppService extends Service {
 	            send("- \"number:contact\": show phone number of a specific contact.");
 	            send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
 	            send("- \"ring\": rings the phone until you send \"stop\"");
-	            send("- \"browse\": browse an url");
-	        }
+	            send("- \"browse:url\": browse an url");
+	            send("- \"map:address\": launch Google Map on a location");
+	            send("- \"nav:address\": launch Google Navigation on a location");
+	            send("- \"street:address\": launch Google Street View on a location");
+	  	   	    }
 	        else if (command.startsWith("sms")) {
 	            String tmp = command.substring(command.indexOf(":") + 1);
 	            String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
@@ -365,6 +372,18 @@ public class XmppService extends Service {
 	        	String url = command.substring(command.indexOf(":") + 1);
 	            browse(url);
 	        }
+	        else if (command.startsWith("map")) {
+	        	String url = command.substring(command.indexOf(":") + 1);
+	        	maps(url);
+	        }
+	        else if (command.startsWith("nav")) {
+	        	String url = command.substring(command.indexOf(":") + 1);
+	        	navigate(url);
+	        }
+	        else if (command.startsWith("street")) {
+	        	String url = command.substring(command.indexOf(":") + 1);
+	        	streetView(url);
+	        }
 	        else {
 	            send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
 	        }
@@ -387,29 +406,29 @@ public class XmppService extends Service {
 
     public void readSMS(String contact, Integer count) {
     	
-    	Dictionary<Long, String> contacts = getContacts(contact);
+        Dictionary<Long, String> contacts = getContacts(contact);
         ContentResolver resolver = getContentResolver();
        
         Enumeration<Long> e = contacts.keys();
         while( e. hasMoreElements() ){
-        	Long id = e.nextElement();
-        	if(null != id)
-        	{
-	        	Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
-	        	String columns[] = new String[] { "person", "body", "date", "status"};
-		        Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
-		            
-		        if (c.getCount() > 0) {
-	            	send(contacts.get(id));
-	            	Integer i = 0;
-		            for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
-		            	Date date = new Date();
-		            	date.setTime(Long.parseLong(getString(c ,"date")));
-			            send( date.toLocaleString() + " - " + getString(c ,"body"));
-			        }
-		        }
-		        c.close();
-        	}
+            Long id = e.nextElement();
+            if(null != id)
+            {
+                Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
+                String columns[] = new String[] { "person", "body", "date", "status"};
+                Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
+                    
+                if (c.getCount() > 0) {
+                    send(contacts.get(id));
+                    Integer i = 0;
+                    for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
+                        Date date = new Date();
+                        date.setTime(Long.parseLong(getString(c ,"date")));
+                        send( date.toLocaleString() + " - " + getString(c ,"body"));
+                    }
+                }
+                c.close();
+            }
         }
     }
 
@@ -424,21 +443,88 @@ public class XmppService extends Service {
     }
 
     private void browse(String url) {
-    	if(!url.contains("//"))
-    	{
-    		url = "http://" + url;
-    	}
-    	try
-    	{
-	    	Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-	    	intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-			startActivity(intent);
-			send("Browsing URL \"" + url + "\".");
-    	}
-    	catch(Exception ex)
-    	{
-    		send("URL \"" + url + "\" not supported");
-    	}
+        try
+        {
+            if(!url.contains("//"))
+            {
+                url = "http://" + url;
+            }
+            launchExternal(url);
+            send("Browsing URL \"" + url + "\".");
+        }
+        catch(Exception ex)
+        {
+            send("URL \"" + url + "\" not supported");
+        }
+    }
+
+    private void maps(String url) {
+        try
+        {
+            if(!url.startsWith("geo:"))
+            {
+                url = "geo:0,0?q=" + url.replace(" ", "+");
+            }
+            launchExternal(url);
+            send("Map on \"" + url + "\".");
+        }
+        catch(Exception ex)
+        {
+            send("\"" + url + "\" not supported");
+        }
+    }
+    
+    private void navigate(String url) {
+        try
+        {
+            if(!url.startsWith("google.navigation:"))
+            {
+                url = "google.navigation:q=" + url.replace(" ", "+");
+            }
+            launchExternal(url);
+            send("Navigate to \"" + url + "\".");
+        }
+        catch(Exception ex)
+        {
+            send("\"" + url + "\" not supported");
+        }
+    }
+    
+    private void streetView(String url) {
+        try
+        {
+            Geocoder geo = new Geocoder(getBaseContext(), Locale.getDefault());
+            List<Address> addresses = geo.getFromLocationName(url, 10);
+            if (addresses.size() > 1) {
+                send("Specify more details:");
+                for (Address address : addresses) {
+                    StringBuilder addr = new StringBuilder();
+                    for (int i = 0; i < address.getMaxAddressLineIndex(); i++) {
+                        addr.append(address.getAddressLine(i) + "\n");
+                    }
+                    send(addr.toString());
+                }
+            }
+            else if (addresses.size() == 1) {
+                Address address = addresses.get(0);
+                launchExternal("google.streetview:cbll=" + address.getLatitude() + "," + address.getLongitude());
+                StringBuilder addr = new StringBuilder();
+                for (int i = 0; i < address.getMaxAddressLineIndex(); i++) {
+                    addr.append(address.getAddressLine(i) + "\n");
+                }
+                send("Street View on \"" + addr + "\".");
+            }
+        }
+        catch(Exception ex)
+        {
+            send("\"" + url + "\" not supported");
+        }
+    }
+    
+    private void launchExternal(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 
     private void ring() {
