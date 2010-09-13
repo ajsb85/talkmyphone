@@ -17,6 +17,9 @@ public class MainScreen extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
+        Intent intent = new Intent(".TalkMyPhone.ACTION");
+        startService(intent);
+        
         Button prefBtn = (Button) findViewById(R.id.Preferences);
         prefBtn.setOnClickListener(new OnClickListener() {
 
