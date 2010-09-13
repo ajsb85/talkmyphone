@@ -316,6 +316,7 @@ public class XmppService extends Service {
 	            send("- \"number:contact\": show phone number of a specific contact.");
 	            send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
 	            send("- \"ring\": rings the phone until you send \"stop\"");
+	            send("- \"browse\": browse an url");
 	        }
 	        else if (command.startsWith("sms")) {
 	            String tmp = command.substring(command.indexOf(":") + 1);
@@ -359,6 +360,10 @@ public class XmppService extends Service {
 	        else if (command.equals("ring")) {
 	            send("Ringing phone");
 	            ring();
+	        }
+	        else if (command.startsWith("browse")) {
+	        	String url = command.substring(command.indexOf(":") + 1);
+	            browse(url);
 	        }
 	        else {
 	            send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
@@ -416,6 +421,24 @@ public class XmppService extends Service {
     private void stopLocatingPhone() {
         Intent intent = new Intent(this, LocationService.class);
         stopService(intent);
+    }
+
+    private void browse(String url) {
+    	if(!url.contains("//"))
+    	{
+    		url = "http://" + url;
+    	}
+    	try
+    	{
+	    	Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+	    	intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(intent);
+			send("Browsing URL \"" + url + "\".");
+    	}
+    	catch(Exception ex)
+    	{
+    		send("URL \"" + url + "\" not supported");
+    	}
     }
 
     private void ring() {
