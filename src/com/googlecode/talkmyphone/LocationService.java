@@ -19,9 +19,10 @@ import android.provider.Settings;
 
 public class LocationService extends Service {
 
-    private LocationManager locationManager = null;
-    private LocationListener locationListener = null;
+    private LocationManager mLocationManager = null;
+    private LocationListener mLocationListener = null;
     private Location currentBestLocation = null;
+    
     private static final int TWO_MINUTES = 1000 * 60 * 2;
 
     @Override
@@ -31,7 +32,7 @@ public class LocationService extends Service {
 
     @Override
     public void onCreate() {
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
     }
 
     /*
@@ -69,15 +70,19 @@ public class LocationService extends Service {
             Settings.System.LOCATION_PROVIDERS_ALLOWED, allowedLocationProviders);
         try {
             Method m =
-                locationManager.getClass().getMethod("updateProviders", new Class[] {});
+                mLocationManager.getClass().getMethod("updateProviders", new Class[] {});
             m.setAccessible(true);
-            m.invoke(locationManager, new Object[]{});
+            m.invoke(mLocationManager, new Object[]{});
         }
         catch(Exception e) {
         }
         return;
     }
 
+    /**
+     * Sends the location through the user.
+     * @param location the location to send.
+     */
     public void sendLocationUpdate(Location location) {
         StringBuilder builder = new StringBuilder();
         builder.append("http://maps.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude() + " (");
@@ -99,7 +104,7 @@ public class LocationService extends Service {
        }
        catch(Exception e) {
        }
-       locationListener = new LocationListener() {
+       mLocationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 if (isBetterLocation(location, currentBestLocation)) {
                     currentBestLocation = location;
@@ -111,16 +116,21 @@ public class LocationService extends Service {
             public void onProviderEnabled(String arg0) {}
         };
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+        // We query every available location providers
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
 
-        Location location = locationManager.getLastKnownLocation("gps");
+        Location location = mLocationManager.getLastKnownLocation("gps");
         if (location == null)
         {
-            location = locationManager.getLastKnownLocation("network");
+            location = mLocationManager.getLastKnownLocation("network");
             if (location != null) {
                 if (isBetterLocation(location, currentBestLocation)) {
                     currentBestLocation = location;
+                    XmppService service = XmppService.getInstance();
+                    if (service != null) {
+                        service.send("Last known location");
+                    }
                     sendLocationUpdate(currentBestLocation);
                 }
             }
@@ -128,15 +138,15 @@ public class LocationService extends Service {
     }
 
     public void onDestroy() {
-        if (locationManager != null && locationListener != null) {
-            locationManager.removeUpdates(locationListener);
-            locationManager = null;
-            locationListener = null;
+        if (mLocationManager != null && mLocationListener != null) {
+            mLocationManager.removeUpdates(mLocationListener);
+            mLocationManager = null;
+            mLocationListener = null;
         }
     }
 
 
-    /** Determines whether one Location reading is better than the current Location fix
+    /** From the SDK documentation. Determines whether one Location reading is better than the current Location fix
       * @param location  The new Location that you want to evaluate
       * @param currentBestLocation  The current Location fix, to which you want to compare the new one
       */
