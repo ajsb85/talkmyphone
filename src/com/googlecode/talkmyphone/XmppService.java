@@ -59,6 +59,7 @@ public class XmppService extends Service {
     private String lastRecipient = null;
     PendingIntent sentPI = null;
     PendingIntent deliveredPI = null;
+    
     private BroadcastReceiver mBatInfoReceiver = new BroadcastReceiver(){
         @Override
         public void onReceive(Context arg0, Intent intent) {
@@ -324,7 +325,7 @@ public class XmppService extends Service {
                 send("- \"map:address\": launch Google Map on a location");
                 send("- \"nav:address\": launch Google Navigation on a location");
                 send("- \"street:address\": launch Google Street View on a location");
-                }
+            }
             else if (command.startsWith("sms")) {
                 String tmp = command.substring(command.indexOf(":") + 1);
                 String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
