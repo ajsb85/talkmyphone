@@ -66,7 +66,7 @@ public class XmppService extends Service {
           send("Battery level "+String.valueOf(level)+"%");
         }
     };
-    
+
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
         SERVER_HOST = prefs.getString("serverHost", "jabber.org");
@@ -130,16 +130,16 @@ public class XmppService extends Service {
         m_connection = new XMPPConnection(config);
         m_connection.connect();
         m_connection.login(LOGIN, PASSWORD);
-        
+
         Timer t = new Timer();
-    	t.schedule(new TimerTask() {
-				@Override
-				public void run() {
-					Presence presence = new Presence(Presence.Type.available);
-			        m_connection.sendPacket(presence);
-				}
-			}, 0, 60*1000);
-	                
+        t.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    Presence presence = new Presence(Presence.Type.available);
+                    m_connection.sendPacket(presence);
+                }
+            }, 0, 60*1000);
+
         // Register packet listener
         PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
         m_connection.addPacketListener(new PacketListener() {
@@ -239,159 +239,159 @@ public class XmppService extends Service {
     }
 
     private Dictionary<Long, String> getContacts(String name) {
-    	Dictionary<Long, String> res = new Hashtable<Long, String>();
-    	ContentResolver resolver = getContentResolver();
+        Dictionary<Long, String> res = new Hashtable<Long, String>();
+        ContentResolver resolver = getContentResolver();
         String[] projection = new String[] { People._ID, People.NAME };
-        
+
         Uri contactUri = Uri.withAppendedPath(People.CONTENT_FILTER_URI, Uri.encode(name));
         Cursor c = resolver.query(contactUri, projection, null, null, null);
         if (c.moveToFirst()) {
-        	do {
-        		Long id = getLong(c,People._ID);
-        		if (null != id) {
-        			String contactName = getString(c,People.NAME);
-        			if(null != contactName) {
-        				res.put(id, contactName);	
-        			}
+            do {
+                Long id = getLong(c,People._ID);
+                if (null != id) {
+                    String contactName = getString(c,People.NAME);
+                    if(null != contactName) {
+                        res.put(id, contactName);
+                    }
                 }
-        	} while (c.moveToNext());
+            } while (c.moveToNext());
         }
         return res;
     }
-    
+
     public void showNumbers(String contact) {
-    	Dictionary<Long, String> contacts = getContacts(contact);
+        Dictionary<Long, String> contacts = getContacts(contact);
         ContentResolver resolver = getContentResolver();
-       
+
         Enumeration<Long> e = contacts.keys();
         while( e. hasMoreElements() ){
-        	Long id = e.nextElement();
-        	send(contacts.get(id));
-        	
-    		Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
+            Long id = e.nextElement();
+            send(contacts.get(id));
+
+            Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
             Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
             String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
             Cursor c2 = resolver.query(phonesUri, proj, null, null, null);
             if (c2.moveToFirst()) {
-            	do {
-            		String number = cleanNumber(getString(c2,Contacts.Phones.NUMBER));
-            		String label = getString(c2,Contacts.Phones.LABEL);
-            		int type = getLong(c2,Contacts.Phones.TYPE).intValue();
-            		
-            		if (label != null && label.compareTo("") != 0)
-            		{
-            			number += " - " + label;
-            		}
-            		else if (type != Contacts.Phones.TYPE_CUSTOM)
-            		{
-            			number += " - " + Contacts.Phones.getDisplayLabel(this.getBaseContext(), type, "");
-            		}
-            		send("\t" + number);
-             	} while (c2.moveToNext());
-         	}
+                do {
+                    String number = cleanNumber(getString(c2,Contacts.Phones.NUMBER));
+                    String label = getString(c2,Contacts.Phones.LABEL);
+                    int type = getLong(c2,Contacts.Phones.TYPE).intValue();
+
+                    if (label != null && label.compareTo("") != 0)
+                    {
+                        number += " - " + label;
+                    }
+                    else if (type != Contacts.Phones.TYPE_CUSTOM)
+                    {
+                        number += " - " + Contacts.Phones.getDisplayLabel(this.getBaseContext(), type, "");
+                    }
+                    send("\t" + number);
+                } while (c2.moveToNext());
+            }
         }
     }
 
     private Long getLong(Cursor c, String col) {
         return c.getLong(c.getColumnIndex(col));
     }
-    
+
     private String cleanNumber(String num) {
         return num.replace("(", "").replace(")", "").replace(" ", "").replace("+33", "0");
     }
-    
+
     private String getString(Cursor c, String col) {
         return c.getString(c.getColumnIndex(col));
     }
-    
+
     public void setLastRecipient(String phoneNumber) {
         lastRecipient = phoneNumber;
     }
 
     private void onCommandReceived(String command) {
-    	try
-    	{
-	        if (command.equals("?")) {
-	            send("Available commands:");
-	            send("- \"?\": shows this help.");
-	            send("- \"reply:message\": send a sms to your last recipient with content message.");
-	            send("- \"sms:number:message\": sends a sms to number with content message.");
-	            send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
-	            send("- \"number:contact\": show phone number of a specific contact.");
-	            send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
-	            send("- \"ring\": rings the phone until you send \"stop\"");
-	            send("- \"browse:url\": browse an url");
-	            send("- \"map:address\": launch Google Map on a location");
-	            send("- \"nav:address\": launch Google Navigation on a location");
-	            send("- \"street:address\": launch Google Street View on a location");
-	  	   	    }
-	        else if (command.startsWith("sms")) {
-	            String tmp = command.substring(command.indexOf(":") + 1);
-	            String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
-	            setLastRecipient(phoneNumber);
-	            String message = tmp.substring(tmp.indexOf(":") + 1);
-	            sendSMS(message, phoneNumber);
-	        }
-	        else if (command.startsWith("reply")) {
-	            if (lastRecipient == null) {
-	                send("Error: no recipient registered.");
-	            } else {
-	                String message = command.substring(command.indexOf(":") + 1);
-	                sendSMS(message, lastRecipient);
-	            }
-	        }
-	        else if (command.startsWith("number")) {
-	            String name = command.substring(command.indexOf(":") + 1);
-	            showNumbers(name);
-	        }
-	        else if (command.startsWith("readsms")) {
-	        	String tmp = command.substring(command.indexOf(":") + 1);
-	            String name = tmp.substring(0, tmp.indexOf(":"));
-	        	int count = 1000;
-	        	try{
-	        		count = Integer.parseInt(tmp.substring(tmp.indexOf(":") + 1));
-	        	}
-	        	catch (Exception e) {
-				}
-		        readSMS(name, count);
-	        }
-	        else if (command.equals("where")) {
-	            send("Start locating phone");
-	            startLocatingPhone();
-	        }
-	        else if (command.equals("stop")) {
-	            send("Stopping ongoing actions");
-	            stopLocatingPhone();
-	            stopRinging();
-	        }
-	        else if (command.equals("ring")) {
-	            send("Ringing phone");
-	            ring();
-	        }
-	        else if (command.startsWith("browse")) {
-	        	String url = command.substring(command.indexOf(":") + 1);
-	            browse(url);
-	        }
-	        else if (command.startsWith("map")) {
-	        	String url = command.substring(command.indexOf(":") + 1);
-	        	maps(url);
-	        }
-	        else if (command.startsWith("nav")) {
-	        	String url = command.substring(command.indexOf(":") + 1);
-	        	navigate(url);
-	        }
-	        else if (command.startsWith("street")) {
-	        	String url = command.substring(command.indexOf(":") + 1);
-	        	streetView(url);
-	        }
-	        else {
-	            send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
-	        }
-    	}
-    	catch(Exception ex)
-    	{
-    		send("Error : " + ex);
-    	}
+        try
+        {
+            if (command.equals("?")) {
+                send("Available commands:");
+                send("- \"?\": shows this help.");
+                send("- \"reply:message\": send a sms to your last recipient with content message.");
+                send("- \"sms:number:message\": sends a sms to number with content message.");
+                send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
+                send("- \"number:contact\": show phone number of a specific contact.");
+                send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
+                send("- \"ring\": rings the phone until you send \"stop\"");
+                send("- \"browse:url\": browse an url");
+                send("- \"map:address\": launch Google Map on a location");
+                send("- \"nav:address\": launch Google Navigation on a location");
+                send("- \"street:address\": launch Google Street View on a location");
+                }
+            else if (command.startsWith("sms")) {
+                String tmp = command.substring(command.indexOf(":") + 1);
+                String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
+                setLastRecipient(phoneNumber);
+                String message = tmp.substring(tmp.indexOf(":") + 1);
+                sendSMS(message, phoneNumber);
+            }
+            else if (command.startsWith("reply")) {
+                if (lastRecipient == null) {
+                    send("Error: no recipient registered.");
+                } else {
+                    String message = command.substring(command.indexOf(":") + 1);
+                    sendSMS(message, lastRecipient);
+                }
+            }
+            else if (command.startsWith("number")) {
+                String name = command.substring(command.indexOf(":") + 1);
+                showNumbers(name);
+            }
+            else if (command.startsWith("readsms")) {
+                String tmp = command.substring(command.indexOf(":") + 1);
+                String name = tmp.substring(0, tmp.indexOf(":"));
+                int count = 1000;
+                try{
+                    count = Integer.parseInt(tmp.substring(tmp.indexOf(":") + 1));
+                }
+                catch (Exception e) {
+                }
+                readSMS(name, count);
+            }
+            else if (command.equals("where")) {
+                send("Start locating phone");
+                startLocatingPhone();
+            }
+            else if (command.equals("stop")) {
+                send("Stopping ongoing actions");
+                stopLocatingPhone();
+                stopRinging();
+            }
+            else if (command.equals("ring")) {
+                send("Ringing phone");
+                ring();
+            }
+            else if (command.startsWith("browse")) {
+                String url = command.substring(command.indexOf(":") + 1);
+                browse(url);
+            }
+            else if (command.startsWith("map")) {
+                String url = command.substring(command.indexOf(":") + 1);
+                maps(url);
+            }
+            else if (command.startsWith("nav")) {
+                String url = command.substring(command.indexOf(":") + 1);
+                navigate(url);
+            }
+            else if (command.startsWith("street")) {
+                String url = command.substring(command.indexOf(":") + 1);
+                streetView(url);
+            }
+            else {
+                send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
+            }
+        }
+        catch(Exception ex)
+        {
+            send("Error : " + ex);
+        }
     }
 
     public void sendSMS(String message, String phoneNumber) {
@@ -405,10 +405,10 @@ public class XmppService extends Service {
     }
 
     public void readSMS(String contact, Integer count) {
-    	
+
         Dictionary<Long, String> contacts = getContacts(contact);
         ContentResolver resolver = getContentResolver();
-       
+
         Enumeration<Long> e = contacts.keys();
         while( e. hasMoreElements() ){
             Long id = e.nextElement();
@@ -417,7 +417,7 @@ public class XmppService extends Service {
                 Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
                 String columns[] = new String[] { "person", "body", "date", "status"};
                 Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
-                    
+
                 if (c.getCount() > 0) {
                     send(contacts.get(id));
                     Integer i = 0;
@@ -473,7 +473,7 @@ public class XmppService extends Service {
             send("\"" + url + "\" not supported");
         }
     }
-    
+
     private void navigate(String url) {
         try
         {
@@ -489,7 +489,7 @@ public class XmppService extends Service {
             send("\"" + url + "\" not supported");
         }
     }
-    
+
     private void streetView(String url) {
         try
         {
@@ -520,7 +520,7 @@ public class XmppService extends Service {
             send("\"" + url + "\" not supported");
         }
     }
-    
+
     private void launchExternal(String url) {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
