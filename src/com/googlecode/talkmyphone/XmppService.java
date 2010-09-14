@@ -47,13 +47,13 @@ import android.widget.Toast;
 
 public class XmppService extends Service {
 
-    private String SERVER_HOST;
-    private int SERVER_PORT;
-    private String SERVICE_NAME;
-    private String LOGIN;
-    private String PASSWORD;
-    private String TO;
-    private XMPPConnection m_connection = null;
+    private String mServerHost;
+    private int mServerPort;
+    private String mServiceName;
+    private String mLogin;
+    private String mPassword;
+    private String mTo;
+    private XMPPConnection mConnection = null;
     private static XmppService instance = null;
     private MediaPlayer mMediaPlayer;
     private String lastRecipient = null;
@@ -64,20 +64,21 @@ public class XmppService extends Service {
         @Override
         public void onReceive(Context arg0, Intent intent) {
           int level = intent.getIntExtra("level", 0);
-          send("Battery level "+String.valueOf(level)+"%");
+          send("Battery level " + level + "%");
         }
     };
 
     private void getPrefs() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
-        SERVER_HOST = prefs.getString("serverHost", "jabber.org");
-        SERVER_PORT = 5222;
-        SERVICE_NAME = SERVER_HOST;
-        LOGIN = prefs.getString("login", "xxxx@jabber.org");
-        PASSWORD =  prefs.getString("password", "xxxx");
-        TO = prefs.getString("recipient", "xxxx@gmail.com");
+        mServerHost = prefs.getString("serverHost", "");
+        mServerPort = 5222;
+        mServiceName = prefs.getString("serviceName", "");
+        mLogin = prefs.getString("login", "");
+        mPassword =  prefs.getString("password", "");
+        mTo = prefs.getString("recipient", "");
     }
 
+    /** init sms monitors (that tell the user the status of the sms) */
     private void initSmsMonitors() {
         String SENT = "SMS_SENT";
         String DELIVERED = "SMS_DELIVERED";
@@ -127,26 +128,26 @@ public class XmppService extends Service {
     private void initConnection() throws XMPPException {
         // Initialize connection
         ConnectionConfiguration config =
-                new ConnectionConfiguration(SERVER_HOST, SERVER_PORT, SERVICE_NAME);
-        m_connection = new XMPPConnection(config);
-        m_connection.connect();
-        m_connection.login(LOGIN, PASSWORD);
+                new ConnectionConfiguration(mServerHost, mServerPort, mServiceName);
+        mConnection = new XMPPConnection(config);
+        mConnection.connect();
+        mConnection.login(mLogin, mPassword);
 
         Timer t = new Timer();
         t.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     Presence presence = new Presence(Presence.Type.available);
-                    m_connection.sendPacket(presence);
+                    mConnection.sendPacket(presence);
                 }
             }, 0, 60*1000);
 
         // Register packet listener
         PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
-        m_connection.addPacketListener(new PacketListener() {
+        mConnection.addPacketListener(new PacketListener() {
                 public void processPacket(Packet packet) {
                     Message message = (Message) packet;
-                    if (message.getFrom().startsWith(TO)) {
+                    if (message.getFrom().startsWith(mTo)) {
                         if (message.getBody() != null) {
                             onCommandReceived(message.getBody());
                         }
@@ -213,15 +214,17 @@ public class XmppService extends Service {
     @Override
     public void onDestroy() {
         instance = null;
-        m_connection.disconnect();
-        m_connection = null;
+        mConnection.disconnect();
+        mConnection = null;
+        stopRinging();
+        stopLocatingPhone();
         Toast.makeText(this, "TalkMyPhone stopped", Toast.LENGTH_SHORT).show();
     }
 
     public void send(String message){
-        Message msg = new Message(TO, Message.Type.chat);
+        Message msg = new Message(mTo, Message.Type.chat);
         msg.setBody(message);
-        m_connection.sendPacket(msg);
+        mConnection.sendPacket(msg);
     }
 
     public String getContactName (String phoneNumber) {
@@ -440,11 +443,13 @@ public class XmppService extends Service {
         }
     }
 
+    /** Starts the geolocation service */
     private void startLocatingPhone() {
         Intent intent = new Intent(this, LocationService.class);
         startService(intent);
     }
 
+    /** Stops the geolocation service */
     private void stopLocatingPhone() {
         Intent intent = new Intent(this, LocationService.class);
         stopService(intent);

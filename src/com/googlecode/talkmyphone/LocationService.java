@@ -80,7 +80,7 @@ public class LocationService extends Service {
     }
 
     /**
-     * Sends the location through the user.
+     * Sends the location to the user.
      * @param location the location to send.
      */
     public void sendLocationUpdate(Location location) {

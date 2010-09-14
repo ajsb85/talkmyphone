@@ -3,23 +3,20 @@
   xmlns:android="http://schemas.android.com/apk/res/android">
 <EditTextPreference
     android:key="serverHost"
-    android:defaultValue="jabber.org"
-    android:title="Phone Server Host" />
-<EditTextPreference
+    android:defaultValue="@string/defaut_server_host" android:title="@string/phone_server_host"/>
+<EditTextPreference android:key="serviceName" android:defaultValue="@string/defaut_server_host" android:title="@string/service_name"/><EditTextPreference
     android:key="login"
-    android:title="Phone Login"
-    android:defaultValue="xxxx@jabber.org" />
+    android:title="@string/phone_login" android:defaultValue="@string/default_phone_login"/>
 <EditTextPreference
     android:key="password"
-    android:title="Phone password"
-    android:password="true" />
+    android:password="true" android:title="@string/phone_password"/>
 <EditTextPreference
     android:key="recipient"
-    android:title="Your gmail address"
-    android:defaultValue="xxxx@gmail.com" />
+    android:title="@string/your_gmail_address" android:defaultValue="@string/default_gmail_address"/>
 <CheckBoxPreference
-    android:title="Start at boot"
     android:defaultValue="false"
     android:summary=""
-    android:key="startAtBoot" />
+    android:key="startAtBoot" android:title="@string/start_at_boot"/>
+
+
 </PreferenceScreen>
