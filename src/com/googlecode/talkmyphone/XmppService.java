@@ -317,14 +317,14 @@ public class XmppService extends Service {
                 send("- \"?\": shows this help.");
                 send("- \"reply:message\": send a sms to your last recipient with content message.");
                 send("- \"sms:number:message\": sends a sms to number with content message.");
-                send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
-                send("- \"number:contact\": show phone number of a specific contact.");
+                //send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
+                //send("- \"number:contact\": show phone number of a specific contact.");
                 send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
                 send("- \"ring\": rings the phone until you send \"stop\"");
                 send("- \"browse:url\": browse an url");
                 send("- \"map:address\": launch Google Map on a location");
-                send("- \"nav:address\": launch Google Navigation on a location");
-                send("- \"street:address\": launch Google Street View on a location");
+                send("- \"nav:address\": launch Google Navigation on a location (if available)");
+                send("- \"street:address\": launch Google Street View on a location (if available)");
             }
             else if (command.startsWith("sms")) {
                 String tmp = command.substring(command.indexOf(":") + 1);
@@ -341,10 +341,13 @@ public class XmppService extends Service {
                     sendSMS(message, lastRecipient);
                 }
             }
+            /*
             else if (command.startsWith("number")) {
                 String name = command.substring(command.indexOf(":") + 1);
                 showNumbers(name);
             }
+            */
+            /*
             else if (command.startsWith("readsms")) {
                 String tmp = command.substring(command.indexOf(":") + 1);
                 String name = tmp.substring(0, tmp.indexOf(":"));
@@ -356,6 +359,7 @@ public class XmppService extends Service {
                 }
                 readSMS(name, count);
             }
+            */
             else if (command.equals("where")) {
                 send("Start locating phone");
                 startLocatingPhone();
@@ -400,8 +404,11 @@ public class XmppService extends Service {
         SmsManager sms = SmsManager.getDefault();
         ArrayList<String> messages = sms.divideMessage(message);
         for (int i=0; i < messages.size(); i++) {
+        	if (i >= 1) {
+        		send("sending part " + i + "/" + messages.size() + " of splitted message");
+        	}
             sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
-            addSmsToOutbox(message, phoneNumber);
+            addSmsToSentBox(message, phoneNumber);
         }
     }
 
@@ -444,26 +451,21 @@ public class XmppService extends Service {
     }
 
     private void browse(String url) {
-        try
-        {
-            if(!url.contains("//"))
-            {
+        try {
+            if(!url.contains("//")) {
                 url = "http://" + url;
             }
             launchExternal(url);
             send("Browsing URL \"" + url + "\".");
         }
-        catch(Exception ex)
-        {
+        catch(Exception ex) {
             send("URL \"" + url + "\" not supported");
         }
     }
 
     private void maps(String url) {
-        try
-        {
-            if(!url.startsWith("geo:"))
-            {
+        try {
+            if(!url.startsWith("geo:")) {
                 url = "geo:0,0?q=" + url.replace(" ", "+");
             }
             launchExternal(url);
@@ -478,22 +480,19 @@ public class XmppService extends Service {
     private void navigate(String url) {
         try
         {
-            if(!url.startsWith("google.navigation:"))
-            {
+            if(!url.startsWith("google.navigation:")) {
                 url = "google.navigation:q=" + url.replace(" ", "+");
             }
             launchExternal(url);
             send("Navigate to \"" + url + "\".");
         }
-        catch(Exception ex)
-        {
+        catch(Exception ex) {
             send("\"" + url + "\" not supported");
         }
     }
 
     private void streetView(String url) {
-        try
-        {
+        try {
             Geocoder geo = new Geocoder(getBaseContext(), Locale.getDefault());
             List<Address> addresses = geo.getFromLocationName(url, 10);
             if (addresses.size() > 1) {
@@ -516,8 +515,7 @@ public class XmppService extends Service {
                 send("Street View on \"" + addr + "\".");
             }
         }
-        catch(Exception ex)
-        {
+        catch(Exception ex) {
             send("\"" + url + "\" not supported");
         }
     }
@@ -528,6 +526,7 @@ public class XmppService extends Service {
         startActivity(intent);
     }
 
+    /** makes the phone ring */
     private void ring() {
         final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
@@ -542,12 +541,13 @@ public class XmppService extends Service {
         }
     }
 
-    // Stops the phone from ringing
+    /** Stops the phone from ringing */
     private void stopRinging() {
         mMediaPlayer.stop();
     }
 
-    private void addSmsToOutbox(String message, String phoneNumber) {
+    /** Adds the text of the message to the sent box */
+    private void addSmsToSentBox(String message, String phoneNumber) {
         ContentValues values = new ContentValues();
         values.put("address", phoneNumber);
         values.put("date", System.currentTimeMillis());
