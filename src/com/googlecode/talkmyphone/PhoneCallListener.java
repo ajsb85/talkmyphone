@@ -3,7 +3,7 @@ package com.googlecode.talkmyphone;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-public class OnCallReceivedAction extends PhoneStateListener {
+public class PhoneCallListener extends PhoneStateListener {
 
     public void onCallStateChanged(int state,String incomingNumber) {
         switch(state) {

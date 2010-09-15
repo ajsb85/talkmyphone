@@ -5,8 +5,8 @@ import android.content.Intent;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-
-public class BootListener extends BroadcastReceiver {
+/** Allows the application to start at boot */
+public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         SharedPreferences prefs = context.getSharedPreferences("TalkMyPhone", 0);

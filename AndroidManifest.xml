@@ -21,7 +21,7 @@
             </intent-filter>
         </service>
         <service android:enabled="true" android:name=".LocationService" />
-        <receiver android:name=".BootListener">
+        <receiver android:name=".BootReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <category android:name="android.intent.category.HOME" />
@@ -32,7 +32,7 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".CallListener">
+        <receiver android:name=".CallReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>
