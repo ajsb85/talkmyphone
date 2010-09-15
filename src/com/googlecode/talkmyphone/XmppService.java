@@ -74,7 +74,7 @@ public class XmppService extends Service {
     private void importPreferences() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
         String serverHost = prefs.getString("serverHost", "");
-        int serverPort = 5222;
+        int serverPort = prefs.getInt("serverPort", 0);
         String serviceName = prefs.getString("serviceName", "");
         mConnectionConfiguration = new ConnectionConfiguration(serverHost, serverPort, serviceName);
         mLogin = prefs.getString("login", "");

@@ -1,22 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen
   xmlns:android="http://schemas.android.com/apk/res/android">
-<EditTextPreference
-    android:key="serverHost"
-    android:defaultValue="@string/defaut_server_host" android:title="@string/phone_server_host"/>
-<EditTextPreference android:key="serviceName" android:defaultValue="@string/defaut_server_host" android:title="@string/service_name"/><EditTextPreference
-    android:key="login"
-    android:title="@string/phone_login" android:defaultValue="@string/default_phone_login"/>
-<EditTextPreference
-    android:key="password"
-    android:password="true" android:title="@string/phone_password"/>
-<EditTextPreference
-    android:key="recipient"
-    android:title="@string/your_gmail_address" android:defaultValue="@string/default_gmail_address"/>
-<CheckBoxPreference
-    android:defaultValue="false"
-    android:summary=""
-    android:key="startAtBoot" android:title="@string/start_at_boot"/>
-
-
+    <PreferenceCategory android:title="@string/phone_jabber_account_settings">
+        <EditTextPreference
+            android:key="serverHost"
+            android:title="@string/server_host"
+            android:defaultValue="jabber.org"/>
+        <com.googlecode.talkmyphone.EditIntegerPreference
+            android:key="serverPort"
+            android:numeric="integer"
+            android:defaultValue="5222"
+            android:title="@string/server_port"/>
+        <EditTextPreference
+            android:key="serviceName"
+            android:title="@string/service_name"
+            android:defaultValue="jabber.org"/>
+        <EditTextPreference
+            android:key="login"
+            android:title="@string/login"
+            android:defaultValue="xxxx@jabber.org"/>
+        <EditTextPreference
+            android:key="password"
+            android:password="true"
+            android:title="@string/password"/>
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/additionnal_settings">
+        <EditTextPreference
+            android:key="recipient"
+            android:title="@string/your_gmail_address"
+            android:defaultValue="xxxx@gmail.com"/>
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="startAtBoot"
+            android:title="@string/start_at_boot"/>
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/notify_me_on">
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:title="@string/application_connection"
+            android:key="notifyApplicationConnection"/>
+        <CheckBoxPreference
+            android:key="notifyBattery"
+            android:defaultValue="true"
+            android:title="@string/battery_state"/>
+        <CheckBoxPreference
+            android:key="notifyIncomingSms"
+            android:defaultValue="true"
+            android:title="@string/incoming_sms"/>
+        <CheckBoxPreference
+            android:key="notifyIncomingCalls"
+            android:defaultValue="true"
+            android:title="@string/incoming_calls"/>
+        <CheckBoxPreference
+            android:key="notifySmsSent"
+            android:defaultValue="true"
+            android:title="@string/sms_sent"/>
+        <CheckBoxPreference
+            android:key="notifySmsDelivered"
+            android:defaultValue="true"
+            android:title="@string/sms_delivered"/>
+    </PreferenceCategory>
 </PreferenceScreen>
