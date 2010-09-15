@@ -8,16 +8,15 @@ import android.net.NetworkInfo;
 
 public class NetworkConnectivityReceiver extends BroadcastReceiver {
 
-	@Override
-	public void onReceive(Context context, Intent arg1) {
-		// TODO Auto-generated method stub
-		ConnectivityManager conMan = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-		NetworkInfo networkInfo = conMan.getActiveNetworkInfo();
-        //Toast.makeText(context, networkInfo.toString(), Toast.LENGTH_SHORT).show();
-		//if(networkInfo.isConnected()){
-		  //Log.d("Connected",networkInfo.toString());		  
-		//}
-		
-	}
-
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        XmppService service = XmppService.getInstance();
+        if (service != null) {
+            ConnectivityManager conMan = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo networkInfo = conMan.getActiveNetworkInfo();
+            if (networkInfo.isConnected()) {
+                service.reConnect();
+            }
+        }
+    }
 }
