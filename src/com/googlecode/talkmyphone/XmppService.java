@@ -21,6 +21,7 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 
+import android.R.string;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -258,13 +259,15 @@ public class XmppService extends Service {
 
     private Dictionary<Long, String> getContacts(String name) {
         Dictionary<Long, String> res = new Hashtable<Long, String>();
-        ContentResolver resolver = getContentResolver();
-        String[] projection = new String[] { People._ID, People.NAME };
-
-        Uri contactUri = Uri.withAppendedPath(People.CONTENT_FILTER_URI, Uri.encode(name));
-        Cursor c = resolver.query(contactUri, projection, null, null, null);
-        if (c.moveToFirst()) {
-            do {
+        
+        if (name.compareTo("") != 0)
+        {
+            ContentResolver resolver = getContentResolver();
+            String[] projection = new String[] { People._ID, People.NAME };
+    
+            Uri contactUri = Uri.withAppendedPath(People.CONTENT_FILTER_URI, Uri.encode(name));
+            Cursor c = resolver.query(contactUri, projection, null, null, null);
+            for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
                 Long id = getLong(c,People._ID);
                 if (null != id) {
                     String contactName = getString(c,People.NAME);
@@ -272,42 +275,10 @@ public class XmppService extends Service {
                         res.put(id, contactName);
                     }
                 }
-            } while (c.moveToNext());
+            }
+            c.close();
         }
         return res;
-    }
-
-    public void showNumbers(String contact) {
-        Dictionary<Long, String> contacts = getContacts(contact);
-        ContentResolver resolver = getContentResolver();
-
-        Enumeration<Long> e = contacts.keys();
-        while( e. hasMoreElements() ){
-            Long id = e.nextElement();
-            send(contacts.get(id));
-
-            Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
-            Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
-            String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
-            Cursor c2 = resolver.query(phonesUri, proj, null, null, null);
-            if (c2.moveToFirst()) {
-                do {
-                    String number = cleanNumber(getString(c2,Contacts.Phones.NUMBER));
-                    String label = getString(c2,Contacts.Phones.LABEL);
-                    int type = getLong(c2,Contacts.Phones.TYPE).intValue();
-
-                    if (label != null && label.compareTo("") != 0)
-                    {
-                        number += " - " + label;
-                    }
-                    else if (type != Contacts.Phones.TYPE_CUSTOM)
-                    {
-                        number += " - " + Contacts.Phones.getDisplayLabel(this.getBaseContext(), type, "");
-                    }
-                    send("\t" + number);
-                } while (c2.moveToNext());
-            }
-        }
     }
 
     private Long getLong(Cursor c, String col) {
@@ -326,9 +297,19 @@ public class XmppService extends Service {
         lastRecipient = phoneNumber;
     }
 
-    private void onCommandReceived(String command) {
+    private void onCommandReceived(String commandLine) {
         try
         {
+            String command;
+            String args;
+            if (-1 != commandLine.indexOf(":")) {
+                command = commandLine.substring(0, commandLine.indexOf(":"));
+                args = commandLine.substring(commandLine.indexOf(":") + 1);
+            } else {
+                command = commandLine;
+                args = "";
+            }
+            
             if (command.equals("?")) {
                 send("Available commands:");
                 send("- \"?\": shows this help.");
@@ -343,40 +324,35 @@ public class XmppService extends Service {
                 send("- \"nav:address\": launch Google Navigation on a location (if available)");
                 send("- \"street:address\": launch Google Street View on a location (if available)");
             }
-            else if (command.startsWith("sms")) {
-                String tmp = command.substring(command.indexOf(":") + 1);
-                String phoneNumber = tmp.substring(0, tmp.indexOf(":"));
+            else if (command.equals("sms")) {
+                String phoneNumber = args.substring(0, args.indexOf(":"));
                 setLastRecipient(phoneNumber);
-                String message = tmp.substring(tmp.indexOf(":") + 1);
+                String message = args.substring(args.indexOf(":") + 1);
                 sendSMS(message, phoneNumber);
             }
-            else if (command.startsWith("reply")) {
+            else if (command.equals("reply")) {
                 if (lastRecipient == null) {
                     send("Error: no recipient registered.");
                 } else {
-                    String message = command.substring(command.indexOf(":") + 1);
-                    sendSMS(message, lastRecipient);
+                    sendSMS(args, lastRecipient);
                 }
             }
-            /*
-            else if (command.startsWith("number")) {
-                String name = command.substring(command.indexOf(":") + 1);
-                showNumbers(name);
+            else if (command.equals("number")) {
+                showNumbers(args);
             }
-            */
-            /*
-            else if (command.startsWith("readsms")) {
-                String tmp = command.substring(command.indexOf(":") + 1);
-                String name = tmp.substring(0, tmp.indexOf(":"));
-                int count = 1000;
-                try{
-                    count = Integer.parseInt(tmp.substring(tmp.indexOf(":") + 1));
-                }
-                catch (Exception e) {
-                }
+            else if (command.equals("readsms")) {
+                int count = 10;
+                String name = args;
+                
+                if (-1 != args.indexOf(":")) {
+                    name = args.substring(0, args.indexOf(":"));
+                    try {
+                        count = Integer.parseInt(args.substring(args.indexOf(":") + 1));
+                    } catch (Exception e) {
+                    }    
+                } 
                 readSMS(name, count);
             }
-            */
             else if (command.equals("where")) {
                 send("Start locating phone");
                 startLocatingPhone();
@@ -390,29 +366,61 @@ public class XmppService extends Service {
                 send("Ringing phone");
                 ring();
             }
-            else if (command.startsWith("browse")) {
-                String url = command.substring(command.indexOf(":") + 1);
-                browse(url);
+            else if (command.equals("browse")) {
+                browse(args);
             }
-            else if (command.startsWith("map")) {
-                String url = command.substring(command.indexOf(":") + 1);
-                maps(url);
+            else if (command.equals("map")) {
+                maps(args);
             }
-            else if (command.startsWith("nav")) {
-                String url = command.substring(command.indexOf(":") + 1);
-                navigate(url);
+            else if (command.equals("nav")) {
+                navigate(args);
             }
-            else if (command.startsWith("street")) {
-                String url = command.substring(command.indexOf(":") + 1);
-                streetView(url);
+            else if (command.equals("street")) {
+                streetView(args);
             }
             else {
-                send('"'+ command + '"' + ": unknown command. Send \"?\" for getting help");
+                send('"'+ commandLine + '"' + ": unknown command. Send \"?\" for getting help");
             }
-        }
-        catch(Exception ex)
-        {
+        } catch (Exception ex) {
             send("Error : " + ex);
+        }
+    }
+
+    public void showNumbers(String contact) {
+        Dictionary<Long, String> contacts = getContacts(contact);
+
+        if (contacts.size() > 0) {
+            ContentResolver resolver = getContentResolver();
+            Enumeration<Long> e = contacts.keys();
+            while( e. hasMoreElements() ){
+                Long id = e.nextElement();
+                send(contacts.get(id));
+    
+                Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
+                Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
+                String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
+                Cursor c = resolver.query(phonesUri, proj, null, null, null);
+               
+                for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
+                    
+                    String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
+                    String label = getString(c,Contacts.Phones.LABEL);
+                    int type = getLong(c,Contacts.Phones.TYPE).intValue();
+
+                    if (label != null && label.compareTo("") != 0)
+                    {
+                        number += " - " + label;
+                    }
+                    else if (type != Contacts.Phones.TYPE_CUSTOM)
+                    {
+                        number += " - " + Contacts.Phones.getDisplayLabel(this.getBaseContext(), type, "");
+                    }
+                    send("\t" + number);
+                }
+                c.close();
+            }
+        } else {
+            send("No match for \"" + contact + "\"");
         }
     }
 
@@ -432,28 +440,33 @@ public class XmppService extends Service {
     public void readSMS(String contact, Integer count) {
 
         Dictionary<Long, String> contacts = getContacts(contact);
-        ContentResolver resolver = getContentResolver();
+        
+        if (contacts.size() > 0) {
+            ContentResolver resolver = getContentResolver();
 
-        Enumeration<Long> e = contacts.keys();
-        while( e. hasMoreElements() ){
-            Long id = e.nextElement();
-            if(null != id)
-            {
-                Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
-                String columns[] = new String[] { "person", "body", "date", "status"};
-                Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
-
-                if (c.getCount() > 0) {
-                    send(contacts.get(id));
-                    Integer i = 0;
-                    for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
-                        Date date = new Date();
-                        date.setTime(Long.parseLong(getString(c ,"date")));
-                        send( date.toLocaleString() + " - " + getString(c ,"body"));
+            Enumeration<Long> e = contacts.keys();
+            while( e.hasMoreElements() ){
+                Long id = e.nextElement();
+                if(null != id)
+                {
+                    Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
+                    String columns[] = new String[] { "person", "body", "date", "status"};
+                    Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
+    
+                    if (c.getCount() > 0) {
+                        send(contacts.get(id));
+                        Integer i = 0;
+                        for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
+                            Date date = new Date();
+                            date.setTime(Long.parseLong(getString(c ,"date")));
+                            send( date.toLocaleString() + " - " + getString(c ,"body"));
+                        }
                     }
+                    c.close();
                 }
-                c.close();
             }
+        } else {
+            send("No match for \"" + contact + "\"");
         }
     }
 
