@@ -54,12 +54,13 @@ public class XmppService extends Service {
     private String mLogin;
     private String mPassword;
     private String mTo;
-    private ConnectionConfiguration mConnectionConfiguration;
+    private ConnectionConfiguration mConnectionConfiguration = null;
     private XMPPConnection mConnection = null;
+    private PacketListener mPacketListener;
     private boolean notifyApplicationConnection;
 
     // ring
-    private MediaPlayer mMediaPlayer;
+    private MediaPlayer mMediaPlayer = null;
 
     // last person who sent sms/who we sent an sms to
     private String lastRecipient = null;
@@ -67,11 +68,13 @@ public class XmppService extends Service {
     // intents for sms sending
     PendingIntent sentPI = null;
     PendingIntent deliveredPI = null;
+    BroadcastReceiver sentSmsReceiver = null;
+    BroadcastReceiver deliveredSmsReceiver = null;
     private boolean notifySmsSent;
     private boolean notifySmsDelivered;
 
     // battery
-    private BroadcastReceiver mBatInfoReceiver;
+    private BroadcastReceiver mBatInfoReceiver = null;
     private boolean notifyBattery;
 
     /** import the preferences */
@@ -90,13 +93,27 @@ public class XmppService extends Service {
         notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
     }
 
-    /** init sms monitors (that tell the user the status of the sms) */
+    /** clear the sms monitoring related stuff */
+    private void clearSmsMonitors() {
+        if (sentSmsReceiver != null) {
+            unregisterReceiver(sentSmsReceiver);
+        }
+        if (deliveredSmsReceiver != null) {
+            unregisterReceiver(deliveredSmsReceiver);
+        }
+        sentPI = null;
+        deliveredPI = null;
+        sentSmsReceiver = null;
+        deliveredSmsReceiver = null;
+    }
+
+    /** reinit sms monitors (that tell the user the status of the sms) */
     private void initSmsMonitors() {
         if (notifySmsSent) {
             String SENT = "SMS_SENT";
             sentPI = PendingIntent.getBroadcast(this, 0,
                 new Intent(SENT), 0);
-            registerReceiver(new BroadcastReceiver(){
+            sentSmsReceiver = new BroadcastReceiver(){
                 @Override
                 public void onReceive(Context arg0, Intent arg1) {
                     switch (getResultCode())
@@ -118,13 +135,14 @@ public class XmppService extends Service {
                             break;
                     }
                 }
-            }, new IntentFilter(SENT));
+            };
+            registerReceiver(sentSmsReceiver, new IntentFilter(SENT));
         }
         if (notifySmsDelivered) {
             String DELIVERED = "SMS_DELIVERED";
             deliveredPI = PendingIntent.getBroadcast(this, 0,
                     new Intent(DELIVERED), 0);
-            registerReceiver(new BroadcastReceiver(){
+            deliveredSmsReceiver = new BroadcastReceiver(){
                 @Override
                 public void onReceive(Context arg0, Intent arg1) {
                     switch (getResultCode())
@@ -137,13 +155,26 @@ public class XmppService extends Service {
                             break;
                     }
                 }
-            }, new IntentFilter(DELIVERED));
+            };
+            registerReceiver(deliveredSmsReceiver, new IntentFilter(DELIVERED));
         }
+    }
+
+    /** clears the XMPP connection */
+    private void clearConnection() {
+        if (mConnection != null) {
+            if (mPacketListener != null) {
+                mConnection.removePacketListener(mPacketListener);
+            }
+            mConnection.disconnect();
+        }
+        mConnection = null;
+        mPacketListener = null;
+        mConnectionConfiguration = null;
     }
 
     /** init the XMPP connection */
     private void initConnection() {
-        // Initialize connection
         mConnection = new XMPPConnection(mConnectionConfiguration);
         try {
             mConnection.connect();
@@ -151,7 +182,7 @@ public class XmppService extends Service {
         } catch (XMPPException e) {
             e.printStackTrace();
         }
-
+        /*
         Timer t = new Timer();
         t.schedule(new TimerTask() {
                 @Override
@@ -160,28 +191,46 @@ public class XmppService extends Service {
                     mConnection.sendPacket(presence);
                 }
             }, 0, 60*1000);
-
-        // Register packet listener
+        */
         PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
-        mConnection.addPacketListener(new PacketListener() {
-                public void processPacket(Packet packet) {
-                    Message message = (Message) packet;
-                    if (message.getFrom().startsWith(mTo)) {
-                        if (message.getBody() != null) {
-                            onCommandReceived(message.getBody());
-                        }
+        mPacketListener = new PacketListener() {
+            public void processPacket(Packet packet) {
+                Message message = (Message) packet;
+                if (message.getFrom().startsWith(mTo + "/")) {
+                    if (message.getBody() != null) {
+                        onCommandReceived(message.getBody());
                     }
                 }
-            }, filter);
-
+            }
+        };
+        mConnection.addPacketListener(mPacketListener, filter);
         // Send welcome message
         if (notifyApplicationConnection) {
             send("Welcome to TalkMyPhone. Send \"?\" for getting help");
         }
     }
 
+    /** Reconnects using the current preferences (assumes the service is started)*/
+    public void reConnect() {
+        mConnection.disconnect();
+        try {
+            mConnection.connect();
+            mConnection.login(mLogin, mPassword);
+        } catch (XMPPException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** clear the battery monitor*/
+    private void clearBatteryMonitor() {
+        if (mBatInfoReceiver != null) {
+            unregisterReceiver(mBatInfoReceiver);
+        }
+        mBatInfoReceiver = null;
+    }
+
     /** init the battery stuff */
-    private void initBatteryStuff() {
+    private void initBatteryMonitor() {
         if (notifyBattery) {
             mBatInfoReceiver = new BroadcastReceiver(){
                 @Override
@@ -194,8 +243,16 @@ public class XmppService extends Service {
         }
     }
 
+    /** clears the media player */
+    private void clearMediaPlayer() {
+        if (mMediaPlayer != null) {
+            mMediaPlayer.stop();
+        }
+        mMediaPlayer = null;
+    }
+
     /** init the media player */
-    private void initMediaPlayerStuff() {
+    private void initMediaPlayer() {
         Uri alert = Settings.System.DEFAULT_RINGTONE_URI ;
         mMediaPlayer = new MediaPlayer();
         try {
@@ -212,12 +269,28 @@ public class XmppService extends Service {
         if (instance == null)
         {
             instance = this;
+
+            // first, clean everything
+            clearConnection();
+            clearSmsMonitors();
+            clearMediaPlayer();
+            clearBatteryMonitor();
+
+            // then, re-import preferences
             importPreferences();
+
+            // finally, init everything
             initSmsMonitors();
-            initBatteryStuff();
-            initMediaPlayerStuff();
+            initBatteryMonitor();
+            initMediaPlayer();
             initConnection();
-            Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
+
+            if (mConnection.isAuthenticated()) {
+                Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "TalkMyPhone failed to authenticate", Toast.LENGTH_SHORT).show();
+                onDestroy();
+            }
         }
     }
 
@@ -243,20 +316,26 @@ public class XmppService extends Service {
 
     @Override
     public void onDestroy() {
-        instance = null;
-        mConnection.disconnect();
-        mConnection = null;
-        stopRinging();
         stopLocatingPhone();
+
+        clearSmsMonitors();
+        clearMediaPlayer();
+        clearBatteryMonitor();
+        clearConnection();
+
+        instance = null;
+
         Toast.makeText(this, "TalkMyPhone stopped", Toast.LENGTH_SHORT).show();
     }
 
+    /** sends a message to the user */
     public void send(String message){
         Message msg = new Message(mTo, Message.Type.chat);
         msg.setBody(message);
         mConnection.sendPacket(msg);
     }
 
+    /** gets the contact display name of the specified phone number */
     public String getContactName (String phoneNumber) {
         String res = phoneNumber;
         ContentResolver resolver = getContentResolver();
@@ -342,6 +421,7 @@ public class XmppService extends Service {
         lastRecipient = phoneNumber;
     }
 
+    /** handles the different commands */
     private void onCommandReceived(String command) {
         try
         {
@@ -432,6 +512,7 @@ public class XmppService extends Service {
         }
     }
 
+    /** sends a SMS to the specified phone number */
     public void sendSMS(String message, String phoneNumber) {
         send("Sending sms to " + getContactName(phoneNumber));
         SmsManager sms = SmsManager.getDefault();
@@ -485,6 +566,7 @@ public class XmppService extends Service {
         stopService(intent);
     }
 
+    /** launches the browser on the specified url */
     private void browse(String url) {
         try {
             if(!url.contains("//")) {
@@ -498,6 +580,7 @@ public class XmppService extends Service {
         }
     }
 
+    /** launches google maps on the specified url */
     private void maps(String url) {
         try {
             if(!url.startsWith("geo:")) {
@@ -512,6 +595,7 @@ public class XmppService extends Service {
         }
     }
 
+    /** launches navigate on the specified url */
     private void navigate(String url) {
         try
         {
@@ -526,6 +610,7 @@ public class XmppService extends Service {
         }
     }
 
+    /** launches streetview on the specified url */
     private void streetView(String url) {
         try {
             Geocoder geo = new Geocoder(getBaseContext(), Locale.getDefault());
@@ -555,6 +640,7 @@ public class XmppService extends Service {
         }
     }
 
+    /** launches an activity on the url */
     private void launchExternal(String url) {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
