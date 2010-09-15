@@ -21,7 +21,6 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 
-import android.R.string;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -44,6 +43,7 @@ import android.provider.Contacts;
 import android.provider.Settings;
 import android.provider.Contacts.People;
 import android.telephony.gsm.SmsManager;
+import android.text.ClipboardManager;
 import android.widget.Toast;
 
 public class XmppService extends Service {
@@ -315,11 +315,12 @@ public class XmppService extends Service {
                 send("- \"?\": shows this help.");
                 send("- \"reply:message\": send a sms to your last recipient with content message.");
                 send("- \"sms:number:message\": sends a sms to number with content message.");
-                //send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
-                //send("- \"number:contact\": show phone number of a specific contact.");
+                send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
+                send("- \"number:contact\": show phone number of a specific contact.");
                 send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
                 send("- \"ring\": rings the phone until you send \"stop\"");
                 send("- \"browse:url\": browse an url");
+                send("- \"copy:text\": copy text to clipboard");
                 send("- \"map:address\": launch Google Map on a location");
                 send("- \"nav:address\": launch Google Navigation on a location (if available)");
                 send("- \"street:address\": launch Google Street View on a location (if available)");
@@ -339,6 +340,9 @@ public class XmppService extends Service {
             }
             else if (command.equals("number")) {
                 showNumbers(args);
+            }
+            else if (command.equals("copy")) {
+                copyToClipboard(args);
             }
             else if (command.equals("readsms")) {
                 int count = 10;
@@ -482,6 +486,16 @@ public class XmppService extends Service {
         stopService(intent);
     }
 
+    private void copyToClipboard(String text) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            clipboard.setText(text);
+        }
+        catch(Exception ex) {
+            send("Clipboard access failed");
+        }
+    }
+    
     private void browse(String url) {
         try {
             if(!url.contains("//")) {
