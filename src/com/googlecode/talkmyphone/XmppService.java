@@ -56,6 +56,7 @@ public class XmppService extends Service {
     private String mTo;
     private ConnectionConfiguration mConnectionConfiguration;
     private XMPPConnection mConnection = null;
+    private boolean notifyApplicationConnection;
 
     // ring
     private MediaPlayer mMediaPlayer;
@@ -66,9 +67,12 @@ public class XmppService extends Service {
     // intents for sms sending
     PendingIntent sentPI = null;
     PendingIntent deliveredPI = null;
+    private boolean notifySmsSent;
+    private boolean notifySmsDelivered;
 
     // battery
-    private BroadcastReceiver mBatInfoReceiver = null;
+    private BroadcastReceiver mBatInfoReceiver;
+    private boolean notifyBattery;
 
     /** import the preferences */
     private void importPreferences() {
@@ -80,53 +84,61 @@ public class XmppService extends Service {
         mLogin = prefs.getString("login", "");
         mPassword =  prefs.getString("password", "");
         mTo = prefs.getString("recipient", "");
+        notifyApplicationConnection = prefs.getBoolean("notifyApplicationConnection", true);
+        notifyBattery = prefs.getBoolean("notifyBattery", true);
+        notifySmsSent = prefs.getBoolean("notifySmsSent", true);
+        notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
     }
 
     /** init sms monitors (that tell the user the status of the sms) */
     private void initSmsMonitors() {
-        String SENT = "SMS_SENT";
-        String DELIVERED = "SMS_DELIVERED";
-        sentPI = PendingIntent.getBroadcast(this, 0,
-            new Intent(SENT), 0);
-        deliveredPI = PendingIntent.getBroadcast(this, 0,
-            new Intent(DELIVERED), 0);
-        registerReceiver(new BroadcastReceiver(){
-            @Override
-            public void onReceive(Context arg0, Intent arg1) {
-                switch (getResultCode())
-                {
-                    case Activity.RESULT_OK:
-                        send("SMS sent");
-                        break;
-                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
-                        send("Generic failure");
-                        break;
-                    case SmsManager.RESULT_ERROR_NO_SERVICE:
-                        send("No service");
-                        break;
-                    case SmsManager.RESULT_ERROR_NULL_PDU:
-                        send("Null PDU");
-                        break;
-                    case SmsManager.RESULT_ERROR_RADIO_OFF:
-                        send("Radio off");
-                        break;
+        if (notifySmsSent) {
+            String SENT = "SMS_SENT";
+            sentPI = PendingIntent.getBroadcast(this, 0,
+                new Intent(SENT), 0);
+            registerReceiver(new BroadcastReceiver(){
+                @Override
+                public void onReceive(Context arg0, Intent arg1) {
+                    switch (getResultCode())
+                    {
+                        case Activity.RESULT_OK:
+                            send("SMS sent");
+                            break;
+                        case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                            send("Generic failure");
+                            break;
+                        case SmsManager.RESULT_ERROR_NO_SERVICE:
+                            send("No service");
+                            break;
+                        case SmsManager.RESULT_ERROR_NULL_PDU:
+                            send("Null PDU");
+                            break;
+                        case SmsManager.RESULT_ERROR_RADIO_OFF:
+                            send("Radio off");
+                            break;
+                    }
                 }
-            }
-        }, new IntentFilter(SENT));
-        registerReceiver(new BroadcastReceiver(){
-            @Override
-            public void onReceive(Context arg0, Intent arg1) {
-                switch (getResultCode())
-                {
-                    case Activity.RESULT_OK:
-                        send("SMS delivered");
-                        break;
-                    case Activity.RESULT_CANCELED:
-                        send("SMS not delivered");
-                        break;
+            }, new IntentFilter(SENT));
+        }
+        if (notifySmsDelivered) {
+            String DELIVERED = "SMS_DELIVERED";
+            deliveredPI = PendingIntent.getBroadcast(this, 0,
+                    new Intent(DELIVERED), 0);
+            registerReceiver(new BroadcastReceiver(){
+                @Override
+                public void onReceive(Context arg0, Intent arg1) {
+                    switch (getResultCode())
+                    {
+                        case Activity.RESULT_OK:
+                            send("SMS delivered");
+                            break;
+                        case Activity.RESULT_CANCELED:
+                            send("SMS not delivered");
+                            break;
+                    }
                 }
-            }
-        }, new IntentFilter(DELIVERED));
+            }, new IntentFilter(DELIVERED));
+        }
     }
 
     /** init the XMPP connection */
@@ -163,19 +175,23 @@ public class XmppService extends Service {
             }, filter);
 
         // Send welcome message
-        send("Welcome to TalkMyPhone. Send \"?\" for getting help");
+        if (notifyApplicationConnection) {
+            send("Welcome to TalkMyPhone. Send \"?\" for getting help");
+        }
     }
 
     /** init the battery stuff */
     private void initBatteryStuff() {
-        mBatInfoReceiver = new BroadcastReceiver(){
-            @Override
-            public void onReceive(Context arg0, Intent intent) {
-              int level = intent.getIntExtra("level", 0);
-              send("Battery level " + level + "%");
-            }
-        };
-        registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if (notifyBattery) {
+            mBatInfoReceiver = new BroadcastReceiver(){
+                @Override
+                public void onReceive(Context arg0, Intent intent) {
+                  int level = intent.getIntExtra("level", 0);
+                  send("Battery level " + level + "%");
+                }
+            };
+            registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        }
     }
 
     /** init the media player */
