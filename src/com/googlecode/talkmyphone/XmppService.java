@@ -47,32 +47,36 @@ import android.widget.Toast;
 
 public class XmppService extends Service {
 
-    private String mServerHost;
-    private int mServerPort;
-    private String mServiceName;
+    // Service instance
+    private static XmppService instance = null;
+
+    // XMPP connection
     private String mLogin;
     private String mPassword;
     private String mTo;
+    private ConnectionConfiguration mConnectionConfiguration;
     private XMPPConnection mConnection = null;
-    private static XmppService instance = null;
+
+    // ring
     private MediaPlayer mMediaPlayer;
+
+    // last person who sent sms/who we sent an sms to
     private String lastRecipient = null;
+
+    // intents for sms sending
     PendingIntent sentPI = null;
     PendingIntent deliveredPI = null;
-    
-    private BroadcastReceiver mBatInfoReceiver = new BroadcastReceiver(){
-        @Override
-        public void onReceive(Context arg0, Intent intent) {
-          int level = intent.getIntExtra("level", 0);
-          send("Battery level " + level + "%");
-        }
-    };
 
-    private void getPrefs() {
+    // battery
+    private BroadcastReceiver mBatInfoReceiver = null;
+
+    /** import the preferences */
+    private void importPreferences() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
-        mServerHost = prefs.getString("serverHost", "");
-        mServerPort = 5222;
-        mServiceName = prefs.getString("serviceName", "");
+        String serverHost = prefs.getString("serverHost", "");
+        int serverPort = 5222;
+        String serviceName = prefs.getString("serviceName", "");
+        mConnectionConfiguration = new ConnectionConfiguration(serverHost, serverPort, serviceName);
         mLogin = prefs.getString("login", "");
         mPassword =  prefs.getString("password", "");
         mTo = prefs.getString("recipient", "");
@@ -125,13 +129,16 @@ public class XmppService extends Service {
         }, new IntentFilter(DELIVERED));
     }
 
-    private void initConnection() throws XMPPException {
+    /** init the XMPP connection */
+    private void initConnection() {
         // Initialize connection
-        ConnectionConfiguration config =
-                new ConnectionConfiguration(mServerHost, mServerPort, mServiceName);
-        mConnection = new XMPPConnection(config);
-        mConnection.connect();
-        mConnection.login(mLogin, mPassword);
+        mConnection = new XMPPConnection(mConnectionConfiguration);
+        try {
+            mConnection.connect();
+            mConnection.login(mLogin, mPassword);
+        } catch (XMPPException e) {
+            e.printStackTrace();
+        }
 
         Timer t = new Timer();
         t.schedule(new TimerTask() {
@@ -159,34 +166,41 @@ public class XmppService extends Service {
         send("Welcome to TalkMyPhone. Send \"?\" for getting help");
     }
 
+    /** init the battery stuff */
+    private void initBatteryStuff() {
+        mBatInfoReceiver = new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent intent) {
+              int level = intent.getIntExtra("level", 0);
+              send("Battery level " + level + "%");
+            }
+        };
+        registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    }
+
+    /** init the media player */
+    private void initMediaPlayerStuff() {
+        Uri alert = Settings.System.DEFAULT_RINGTONE_URI ;
+        mMediaPlayer = new MediaPlayer();
+        try {
+            mMediaPlayer.setDataSource(this, alert);
+            mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+            mMediaPlayer.setLooping(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void _onStart() {
         // Get configuration
         if (instance == null)
         {
             instance = this;
-            getPrefs();
+            importPreferences();
             initSmsMonitors();
-            Uri alert = Settings.System.DEFAULT_RINGTONE_URI ;
-            mMediaPlayer = new MediaPlayer();
-            try {
-                mMediaPlayer.setDataSource(this, alert);
-                mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-                mMediaPlayer.setLooping(true);
-            } catch (IllegalArgumentException e1) {
-                e1.printStackTrace();
-            } catch (SecurityException e1) {
-                e1.printStackTrace();
-            } catch (IllegalStateException e1) {
-                e1.printStackTrace();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
-            try {
-                initConnection();
-            } catch (XMPPException e) {
-                e.printStackTrace();
-            }
-            registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            initBatteryStuff();
+            initMediaPlayerStuff();
+            initConnection();
             Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
         }
     }
@@ -407,9 +421,9 @@ public class XmppService extends Service {
         SmsManager sms = SmsManager.getDefault();
         ArrayList<String> messages = sms.divideMessage(message);
         for (int i=0; i < messages.size(); i++) {
-        	if (i >= 1) {
-        		send("sending part " + i + "/" + messages.size() + " of splitted message");
-        	}
+            if (i >= 1) {
+                send("sending part " + i + "/" + messages.size() + " of splitted message");
+            }
             sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
             addSmsToSentBox(message, phoneNumber);
         }
