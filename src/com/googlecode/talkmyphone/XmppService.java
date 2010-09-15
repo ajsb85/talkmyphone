@@ -369,6 +369,50 @@ public class XmppService extends Service {
         return res;
     }
 
+    /** gets all matching mobile phone with associated contact name */
+    private Dictionary<String, String> getMobilePhones(String name) {
+        Dictionary<String, String> res = new Hashtable<String, String>();
+        String cellPhonePattern = "0[67]\\d{8}";
+        if (cleanNumber(name).matches("\\d")) {
+            String number = cleanNumber(name);
+            res.put(number, getContactName(number));
+        } else if (name.compareTo("") != 0) {
+            Dictionary<Long, String> contacts = getContacts(name);
+
+            if (contacts.size() > 0){
+                ContentResolver resolver = getContentResolver();
+                Enumeration<Long> e = contacts.keys();
+                while( e. hasMoreElements() ){
+                    Long id = e.nextElement();
+
+                    Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
+                    Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
+                    String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
+                    Cursor c = resolver.query(phonesUri, proj, null, null, null);
+
+                    for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
+                        String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
+                        if (cleanNumber(number).matches(cellPhonePattern)) {
+                            res.put(number, contacts.get(id));
+                        }
+                    }
+                    
+                    // manage not french cell phones
+                    if (res.size() == 0) {
+                        for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
+                            String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
+                            if (getLong(c,Contacts.Phones.TYPE) == Contacts.Phones.TYPE_MOBILE) {
+                                res.put(number, contacts.get(id));
+                            }
+                        }
+                    }
+                    c.close();
+                }
+            }
+        }
+        return res;
+    }
+
     private Long getLong(Cursor c, String col) {
         return c.getLong(c.getColumnIndex(col));
     }
@@ -411,10 +455,10 @@ public class XmppService extends Service {
                 send("...and pasting a link lets you choose your activity.");
             }
             else if (command.equals("sms")) {
-                String phoneNumber = args.substring(0, args.indexOf(":"));
-                setLastRecipient(phoneNumber);
+                String contact = args.substring(0, args.indexOf(":"));
+                setLastRecipient(contact);
                 String message = args.substring(args.indexOf(":") + 1);
-                sendSMS(message, phoneNumber);
+                sendSMS(message, contact);
             }
             else if (command.equals("reply")) {
                 if (lastRecipient == null) {
@@ -506,16 +550,30 @@ public class XmppService extends Service {
     }
 
     /** sends a SMS to the specified phone number */
-    public void sendSMS(String message, String phoneNumber) {
-        send("Sending sms to " + getContactName(phoneNumber));
-        SmsManager sms = SmsManager.getDefault();
-        ArrayList<String> messages = sms.divideMessage(message);
-        for (int i=0; i < messages.size(); i++) {
-            if (i >= 1) {
-                send("sending part " + i + "/" + messages.size() + " of splitted message");
+    public void sendSMS(String message, String contact) {
+        Dictionary<String, String> mobilePhones = getMobilePhones(contact);
+        if (mobilePhones.size() > 1) {
+            send("Specify more details:");
+            Enumeration<String> e = mobilePhones.keys();
+            while( e.hasMoreElements() ){
+                String number = e.nextElement();
+                String name = mobilePhones.get(number);
+                send(name + " - " + number);
             }
-            sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
-            addSmsToSentBox(message, phoneNumber);
+        } else if (mobilePhones.size() == 1) {
+            String phoneNumber = mobilePhones.keys().nextElement();
+            send("Sending sms to " + mobilePhones.get(phoneNumber));
+            SmsManager sms = SmsManager.getDefault();
+            ArrayList<String> messages = sms.divideMessage(message);
+            for (int i=0; i < messages.size(); i++) {
+                if (i >= 1) {
+                    send("sending part " + i + "/" + messages.size() + " of splitted message");
+                }
+                sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
+                addSmsToSentBox(message, phoneNumber);
+            }
+        } else {
+            send("No match for \"" + contact + "\"");
         }
     }
 
