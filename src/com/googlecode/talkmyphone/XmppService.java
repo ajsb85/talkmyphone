@@ -189,7 +189,9 @@ public class XmppService extends Service {
         mPacketListener = new PacketListener() {
             public void processPacket(Packet packet) {
                 Message message = (Message) packet;
-                if (message.getFrom().startsWith(mTo + "/")) {
+                if (message.getFrom().startsWith(mTo + "/")
+                && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
+                ) {
                     if (message.getBody() != null) {
                         onCommandReceived(message.getBody());
                     }
