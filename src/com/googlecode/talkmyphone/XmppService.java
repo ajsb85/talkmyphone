@@ -232,10 +232,21 @@ public class XmppService extends Service {
     private void initBatteryMonitor() {
         if (notifyBattery) {
             mBatInfoReceiver = new BroadcastReceiver(){
+                private int lastPercentageNotified = -1;
                 @Override
                 public void onReceive(Context arg0, Intent intent) {
-                  int level = intent.getIntExtra("level", 0);
-                  send("Battery level " + level + "%");
+                    int level = intent.getIntExtra("level", 0);
+                    if (lastPercentageNotified == -1) {
+                        notifyAndSavePercentage(level);
+                    } else {
+                        if (level != lastPercentageNotified && level % 5 == 0) {
+                            notifyAndSavePercentage(level);
+                        }
+                    }
+                }
+                private void notifyAndSavePercentage(int level) {
+                    send("Battery level " + level + "%");
+                    lastPercentageNotified = level;
                 }
             };
             registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
