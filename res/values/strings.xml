@@ -8,6 +8,7 @@
     <string name="login">Login</string>
     <string name="password">Password</string>
     <string name="your_gmail_address">Your gmail address</string>
+    <string name="your_gmail_password">Your gmail password</string>
     <string name="start_at_boot">Start at boot</string>
     <string name="battery_state">Battery state changes</string>
     <string name="incoming_sms">Incoming sms</string>
@@ -16,6 +17,6 @@
     <string name="sms_sent">Sms sent</string>
     <string name="sms_delivered">Sms delivered</string>
     <string name="notify_me_on">Notify me on</string>
-    <string name="phone_jabber_account_settings">Phone Jabber account settings</string>
+    <string name="account_settings">Gmail account settings</string>
     <string name="additionnal_settings">Additionnal settings</string>
 </resources>

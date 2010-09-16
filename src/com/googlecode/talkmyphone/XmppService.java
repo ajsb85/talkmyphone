@@ -70,16 +70,20 @@ public class XmppService extends Service {
     private BroadcastReceiver mBatInfoReceiver = null;
     private boolean notifyBattery;
 
+    // Contact searching
+    private final static String cellPhonePattern = "0[67]\\d{8}";
+    private final static String internationalPrefix = "+33";
+
     /** import the preferences */
     private void importPreferences() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
-        String serverHost = prefs.getString("serverHost", "");
-        int serverPort = prefs.getInt("serverPort", 0);
-        String serviceName = prefs.getString("serviceName", "");
+        String serverHost = "talk.google.com";
+        int serverPort = 5222;
+        String serviceName = "gmail.com";
         mConnectionConfiguration = new ConnectionConfiguration(serverHost, serverPort, serviceName);
         mLogin = prefs.getString("login", "");
         mPassword =  prefs.getString("password", "");
-        mTo = prefs.getString("recipient", "");
+        mTo = prefs.getString("login", "");
         notifyApplicationConnection = prefs.getBoolean("notifyApplicationConnection", true);
         notifyBattery = prefs.getBoolean("notifyBattery", true);
         notifySmsSent = prefs.getBoolean("notifySmsSent", true);
@@ -330,7 +334,10 @@ public class XmppService extends Service {
         mConnection.sendPacket(msg);
     }
 
-    /** gets the contact display name of the specified phone number */
+    /**
+     * Tries to get the contact display name of the specified phone number.
+     * If not found, returns the argument.
+     */
     public String getContactName (String phoneNumber) {
         String res = phoneNumber;
         ContentResolver resolver = getContentResolver();
@@ -346,21 +353,24 @@ public class XmppService extends Service {
         return res;
     }
 
-    /** gets all matching contacts with their ID */
-    private Dictionary<Long, String> getContacts(String name) {
+    /**
+     * Returns a dictionary of <ID, name> where the names match the argument
+     */
+    private Dictionary<Long, String> getMatchingContacts(String searchedName) {
         Dictionary<Long, String> res = new Hashtable<Long, String>();
-
-        if (name.compareTo("") != 0)
+        if (!searchedName.equals(""))
         {
             ContentResolver resolver = getContentResolver();
-            String[] projection = new String[] { People._ID, People.NAME };
-
-            Uri contactUri = Uri.withAppendedPath(People.CONTENT_FILTER_URI, Uri.encode(name));
+            String[] projection = new String[] {
+                    Contacts.People._ID,
+                    Contacts.People.NAME
+                    };
+            Uri contactUri = Uri.withAppendedPath(People.CONTENT_FILTER_URI, Uri.encode(searchedName));
             Cursor c = resolver.query(contactUri, projection, null, null, null);
             for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
-                Long id = getLong(c,People._ID);
+                Long id = getLong(c, People._ID);
                 if (null != id) {
-                    String contactName = getString(c,People.NAME);
+                    String contactName = getString(c, People.NAME);
                     if(null != contactName) {
                         res.put(id, contactName);
                     }
@@ -371,17 +381,18 @@ public class XmppService extends Service {
         return res;
     }
 
-    /** gets all matching mobile phone with associated contact name */
-    private Dictionary<String, String> getMobilePhones(String name) {
+    /**
+     * Returns a dictionary < phoneNumber, contactName >
+     * with all matching mobile phone for the argument
+     */
+    private Dictionary<String, String> getMobilePhones(String contact) {
         Dictionary<String, String> res = new Hashtable<String, String>();
-        String cellPhonePattern = "0[67]\\d{8}";
-        if (cleanNumber(name).matches("\\d")) {
-            String number = cleanNumber(name);
-            res.put(number, getContactName(number));
-        } else if (name.compareTo("") != 0) {
-            Dictionary<Long, String> contacts = getContacts(name);
-
-            if (contacts.size() > 0){
+        if (isCellPhoneNumber(contact)) {
+            res.put(contact, getContactName(contact));
+        } else {
+            // get the matching contacts, dictionary of < id, names >
+            Dictionary<Long, String> contacts = getMatchingContacts(contact);
+            if (contacts.size() > 0) {
                 ContentResolver resolver = getContentResolver();
                 Enumeration<Long> e = contacts.keys();
                 while( e. hasMoreElements() ){
@@ -393,16 +404,15 @@ public class XmppService extends Service {
                     Cursor c = resolver.query(phonesUri, proj, null, null, null);
 
                     for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
-                        String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
-                        if (cleanNumber(number).matches(cellPhonePattern)) {
+                        String number = getString(c,Contacts.Phones.NUMBER);
+                        if (isCellPhoneNumber(number)) {
                             res.put(number, contacts.get(id));
                         }
                     }
-                    
                     // manage not french cell phones
                     if (res.size() == 0) {
                         for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
-                            String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
+                            String number = getString(c,Contacts.Phones.NUMBER);
                             if (getLong(c,Contacts.Phones.TYPE) == Contacts.Phones.TYPE_MOBILE) {
                                 res.put(number, contacts.get(id));
                             }
@@ -419,12 +429,17 @@ public class XmppService extends Service {
         return c.getLong(c.getColumnIndex(col));
     }
 
-    private String cleanNumber(String num) {
-        return num.replace("(", "").replace(")", "").replace(" ", "").replace("+33", "0");
-    }
-
     private String getString(Cursor c, String col) {
         return c.getString(c.getColumnIndex(col));
+    }
+
+    private boolean isCellPhoneNumber(String number) {
+        String cleanNumber = number
+                                .replace("(", "")
+                                .replace(")", "")
+                                .replace(" ", "")
+                                .replace(internationalPrefix, "0");
+        return cleanNumber.matches(cellPhonePattern);
     }
 
     public void setLastRecipient(String phoneNumber) {
@@ -445,22 +460,30 @@ public class XmppService extends Service {
             }
 
             if (command.equals("?")) {
-                send("Available commands:");
-                send("- \"?\": shows this help.");
-                send("- \"reply:message\": send a sms to your last recipient with content message.");
-                send("- \"sms:number:message\": sends a sms to number with content message.");
-                send("- \"readsms:contact[:number]\": read X sms of a specific contact.");
-                send("- \"number:contact\": show phone number of a specific contact.");
-                send("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"");
-                send("- \"ring\": rings the phone until you send \"stop\"");
-                send("- \"copy:text\": copy text to clipboard");
-                send("...and pasting a link lets you choose your activity.");
+                StringBuilder builder = new StringBuilder();
+                builder.append("Available commands:\n");
+                builder.append("- \"?\": shows this help.\n");
+                builder.append("- \"reply:message\": send a sms to your last recipient with content message.\n");
+                builder.append("- \"sms:contact:message\": sends a sms to number with content message.\n");
+                builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
+                builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
+                builder.append("- \"copy:text\": copy text to clipboard\n");
+                builder.append("- paste links, open it with the appropriate app\n");
+                send(builder.toString());
             }
             else if (command.equals("sms")) {
-                String contact = args.substring(0, args.indexOf(":"));
-                setLastRecipient(contact);
-                String message = args.substring(args.indexOf(":") + 1);
-                sendSMS(message, contact);
+                int separatorPos = args.indexOf(":");
+                String contact = null;
+                String message = null;
+                if (-1 != separatorPos) {
+                    contact = args.substring(0, separatorPos);
+                    setLastRecipient(contact);
+                    message = args.substring(separatorPos + 1);
+                    sendSMS(message, contact);
+                } else {
+                    contact = args;
+                    readSMS(contact, 5);
+                }
             }
             else if (command.equals("reply")) {
                 if (lastRecipient == null) {
@@ -469,24 +492,8 @@ public class XmppService extends Service {
                     sendSMS(args, lastRecipient);
                 }
             }
-            else if (command.equals("number")) {
-                showNumbers(args);
-            }
             else if (command.equals("copy")) {
                 copyToClipboard(args);
-            }
-            else if (command.equals("readsms")) {
-                int count = 10;
-                String name = args;
-
-                if (-1 != args.indexOf(":")) {
-                    name = args.substring(0, args.indexOf(":"));
-                    try {
-                        count = Integer.parseInt(args.substring(args.indexOf(":") + 1));
-                    } catch (Exception e) {
-                    }
-                }
-                readSMS(name, count);
             }
             else if (command.equals("where")) {
                 send("Start locating phone");
@@ -504,6 +511,9 @@ public class XmppService extends Service {
             else if (command.equals("http")) {
                 open("http:" + args);
             }
+            else if (command.equals("https")) {
+                open("https:" + args);
+            }
             else {
                 send('"'+ commandLine + '"' + ": unknown command. Send \"?\" for getting help");
             }
@@ -512,86 +522,54 @@ public class XmppService extends Service {
         }
     }
 
-    /** display phone numbers from all contacts matching pattern */
-    public void showNumbers(String contact) {
-        Dictionary<Long, String> contacts = getContacts(contact);
-
-        if (contacts.size() > 0) {
-            ContentResolver resolver = getContentResolver();
-            Enumeration<Long> e = contacts.keys();
-            while( e. hasMoreElements() ){
-                Long id = e.nextElement();
-                send(contacts.get(id));
-
-                Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, id);
-                Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
-                String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
-                Cursor c = resolver.query(phonesUri, proj, null, null, null);
-
-                for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
-
-                    String number = cleanNumber(getString(c,Contacts.Phones.NUMBER));
-                    String label = getString(c,Contacts.Phones.LABEL);
-                    int type = getLong(c,Contacts.Phones.TYPE).intValue();
-
-                    if (label != null && label.compareTo("") != 0)
-                    {
-                        number += " - " + label;
-                    }
-                    else if (type != Contacts.Phones.TYPE_CUSTOM)
-                    {
-                        number += " - " + Contacts.Phones.getDisplayLabel(this.getBaseContext(), type, "");
-                    }
-                    send("\t" + number);
-                }
-                c.close();
+    /** Sends a sms to the specified phone number */
+    public void sendSMSByPhoneNumber(String message, String phoneNumber) {
+        SmsManager sms = SmsManager.getDefault();
+        ArrayList<String> messages = sms.divideMessage(message);
+        send("Sending sms to " + getContactName(phoneNumber));
+        for (int i=0; i < messages.size(); i++) {
+            if (i >= 1) {
+                send("sending part " + i + "/" + messages.size() + " of splitted message");
             }
-        } else {
-            send("No match for \"" + contact + "\"");
+            sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
+            addSmsToSentBox(message, phoneNumber);
         }
     }
 
-    /** sends a SMS to the specified phone number */
+    /** sends a SMS to the specified contact */
     public void sendSMS(String message, String contact) {
-        Dictionary<String, String> mobilePhones = getMobilePhones(contact);
-        if (mobilePhones.size() > 1) {
-            send("Specify more details:");
-            Enumeration<String> e = mobilePhones.keys();
-            while( e.hasMoreElements() ){
-                String number = e.nextElement();
-                String name = mobilePhones.get(number);
-                send(name + " - " + number);
-            }
-        } else if (mobilePhones.size() == 1) {
-            String phoneNumber = mobilePhones.keys().nextElement();
-            send("Sending sms to " + mobilePhones.get(phoneNumber));
-            SmsManager sms = SmsManager.getDefault();
-            ArrayList<String> messages = sms.divideMessage(message);
-            for (int i=0; i < messages.size(); i++) {
-                if (i >= 1) {
-                    send("sending part " + i + "/" + messages.size() + " of splitted message");
-                }
-                sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
-                addSmsToSentBox(message, phoneNumber);
-            }
+        if (isCellPhoneNumber(contact)) {
+            sendSMSByPhoneNumber(message, contact);
         } else {
-            send("No match for \"" + contact + "\"");
+            Dictionary<String, String> mobilePhones = getMobilePhones(contact);
+            if (mobilePhones.size() > 1) {
+                send("Specify more details:");
+                Enumeration<String> e = mobilePhones.keys();
+                while( e.hasMoreElements() ){
+                    String number = e.nextElement();
+                    String name = mobilePhones.get(number);
+                    send(name + " - " + number);
+                }
+            } else if (mobilePhones.size() == 1) {
+                String phoneNumber = mobilePhones.keys().nextElement();
+                sendSMSByPhoneNumber(message, phoneNumber);
+            } else {
+                send("No match for \"" + contact + "\"");
+            }
         }
     }
 
-    /** sends (count) SMS to all contacts matching pattern */
+    /** reads (count) SMS from all contacts matching pattern */
     public void readSMS(String contact, Integer count) {
 
-        Dictionary<Long, String> contacts = getContacts(contact);
+        Dictionary<Long, String> contacts = getMatchingContacts(contact);
 
         if (contacts.size() > 0) {
             ContentResolver resolver = getContentResolver();
-
             Enumeration<Long> e = contacts.keys();
-            while( e.hasMoreElements() ){
+            while( e.hasMoreElements() ) {
                 Long id = e.nextElement();
-                if(null != id)
-                {
+                if(null != id) {
                     Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
                     String columns[] = new String[] { "person", "body", "date", "status"};
                     Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + id, null, null);
@@ -604,6 +582,11 @@ public class XmppService extends Service {
                             date.setTime(Long.parseLong(getString(c ,"date")));
                             send( date.toLocaleString() + " - " + getString(c ,"body"));
                         }
+                        if (i < count) {
+                            send("Only got " + i + " sms");
+                        }
+                    } else {
+                        send("No sms found");
                     }
                     c.close();
                 }
@@ -630,6 +613,7 @@ public class XmppService extends Service {
         try {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             clipboard.setText(text);
+            send("Text copied");
         }
         catch(Exception ex) {
             send("Clipboard access failed");
