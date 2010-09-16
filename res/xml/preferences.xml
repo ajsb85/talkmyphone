@@ -4,8 +4,7 @@
     <PreferenceCategory android:title="@string/phone_jabber_account_settings">
         <EditTextPreference
             android:key="serverHost"
-            android:title="@string/server_host"
-            android:defaultValue="jabber.org"/>
+            android:title="@string/server_host" android:defaultValue="talk.google.com"/>
         <com.googlecode.talkmyphone.EditIntegerPreference
             android:key="serverPort"
             android:numeric="integer"
@@ -13,12 +12,10 @@
             android:title="@string/server_port"/>
         <EditTextPreference
             android:key="serviceName"
-            android:title="@string/service_name"
-            android:defaultValue="jabber.org"/>
+            android:title="@string/service_name" android:defaultValue="gmail.com"/>
         <EditTextPreference
             android:key="login"
-            android:title="@string/login"
-            android:defaultValue="xxxx@jabber.org"/>
+            android:title="@string/login" android:defaultValue="xxxx@gmail.com"/>
         <EditTextPreference
             android:key="password"
             android:password="true"
