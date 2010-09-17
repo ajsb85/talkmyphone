@@ -77,13 +77,18 @@ public class XmppService extends Service {
     /** import the preferences */
     private void importPreferences() {
         SharedPreferences prefs = getSharedPreferences("TalkMyPhone", 0);
-        String serverHost = "talk.google.com";
-        int serverPort = 5222;
-        String serviceName = "gmail.com";
+        String serverHost = prefs.getString("serverHost", "");
+        int serverPort = prefs.getInt("serverPort", 0);
+        String serviceName = prefs.getString("serviceName", "");
         mConnectionConfiguration = new ConnectionConfiguration(serverHost, serverPort, serviceName);
-        mLogin = prefs.getString("login", "");
+        mTo = prefs.getString("notifiedAddress", "");
         mPassword =  prefs.getString("password", "");
-        mTo = prefs.getString("login", "");
+        boolean useDifferentAccount = prefs.getBoolean("useDifferentAccount", false);
+        if (useDifferentAccount) {
+            mLogin = prefs.getString("login", "");
+        } else{
+            mLogin = mTo;
+        }
         notifyApplicationConnection = prefs.getBoolean("notifyApplicationConnection", true);
         notifyBattery = prefs.getBoolean("notifyBattery", true);
         notifySmsSent = prefs.getBoolean("notifySmsSent", true);
@@ -295,7 +300,7 @@ public class XmppService extends Service {
             initMediaPlayer();
             initConnection();
 
-            if (mConnection.isAuthenticated()) {
+            if (mConnection.isConnected() && mConnection.isAuthenticated()) {
                 Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "TalkMyPhone failed to authenticate", Toast.LENGTH_SHORT).show();

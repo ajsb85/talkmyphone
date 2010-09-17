@@ -1,45 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <PreferenceCategory android:title="@string/account_settings">
+    xmlns:android="http://schemas.android.com/apk/res/android" android:key="TalkMyPhonePreferences">
+
+    <PreferenceCategory
+        android:title="@string/notified_address" android:key="Recipient">
+        <EditTextPreference
+            android:title="@string/notified_address"
+            android:key="notifiedAddress"
+            android:defaultValue="your.login@gmail.com"
+            android:summary="Put here your gmail address"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/connection_settings" android:key="ConnectionSettings">
+        <CheckBoxPreference
+            android:key="useDifferentAccount"
+            android:title="@string/use_different_account"
+            android:defaultValue="false"
+            android:summary="Check if you want the phone to connect from a different account" />
         <EditTextPreference
             android:key="login"
-            android:title="@string/login" android:defaultValue="xxxx@gmail.com"/>
+            android:title="@string/login"
+            android:defaultValue="your.login@gmail.com"
+            android:dependency="useDifferentAccount"
+            android:summary="Login used by the phone"/>
         <EditTextPreference
             android:key="password"
             android:password="true"
-            android:title="@string/password"/>
+            android:title="@string/password"
+            android:summary="Put here your gmail password or the password used by the phone to connect"/>
+        <PreferenceScreen
+            android:title="@string/additionnal_settings">
+            <EditTextPreference
+                android:title="@string/server_host"
+                android:key="serverHost"
+                android:summary="Server host the phone uses to connect"
+                android:defaultValue="talk.google.com"/>
+            <com.googlecode.talkmyphone.EditIntegerPreference
+                android:key="serverPort"
+                android:numeric="integer"
+                android:defaultValue="5222"
+                android:summary="Server port the phone uses to connect"
+                android:title="@string/server_port"/>
+            <EditTextPreference
+                android:title="@string/service_name"
+                android:key="serviceName"
+                android:summary="Service name the phone uses to connect"
+                android:defaultValue="gmail.com"/>
+        </PreferenceScreen>
     </PreferenceCategory>
-    <PreferenceCategory android:title="@string/additionnal_settings">
+
+    <PreferenceCategory android:title="@string/additionnal_settings" android:key="AdditionnalSettings">
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="startAtBoot"
-            android:title="@string/start_at_boot"/>
+            android:title="@string/start_at_boot"
+            android:summary="Check if you want TalkMyPhone to start at boot"/>
     </PreferenceCategory>
-    <PreferenceCategory android:title="@string/notify_me_on">
+
+    <PreferenceCategory android:title="@string/notify_me_on" android:key="Notifications">
         <CheckBoxPreference
             android:defaultValue="true"
             android:title="@string/application_connection"
-            android:key="notifyApplicationConnection"/>
+            android:key="notifyApplicationConnection"
+            android:summary="Notify each time the phone reconnects"/>
         <CheckBoxPreference
             android:key="notifyBattery"
             android:defaultValue="true"
-            android:title="@string/battery_state"/>
+            android:title="@string/battery_state"
+            android:summary="Notify each time the battery state changes"/>
         <CheckBoxPreference
             android:key="notifyIncomingSms"
             android:defaultValue="true"
-            android:title="@string/incoming_sms"/>
+            android:title="@string/incoming_sms"
+            android:summary="Notify for incoming sms"/>
         <CheckBoxPreference
             android:key="notifyIncomingCalls"
             android:defaultValue="true"
-            android:title="@string/incoming_calls"/>
+            android:title="@string/incoming_calls"
+            android:summary="Notify for incoming calls"/>
         <CheckBoxPreference
             android:key="notifySmsSent"
             android:defaultValue="true"
-            android:title="@string/sms_sent"/>
+            android:title="@string/sms_sent"
+            android:summary="Confirm when the sms you write are sent"/>
         <CheckBoxPreference
             android:key="notifySmsDelivered"
             android:defaultValue="true"
-            android:title="@string/sms_delivered"/>
+            android:title="@string/sms_delivered"
+            android:summary="Confirm when the sms you write are delivered"/>
     </PreferenceCategory>
 </PreferenceScreen>

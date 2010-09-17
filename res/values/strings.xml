@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="useSameAccount">useSameAccount</string>
     <string name="app_name">TalkMyPhone</string>
     <string name="set_preferences">Preferences</string>
     <string name="server_host">Server host</string>
@@ -17,6 +18,8 @@
     <string name="sms_sent">Sms sent</string>
     <string name="sms_delivered">Sms delivered</string>
     <string name="notify_me_on">Notify me on</string>
-    <string name="account_settings">Gmail account settings</string>
+    <string name="connection_settings">Connection settings</string>
     <string name="additionnal_settings">Additionnal settings</string>
+<string name="notified_address">Address to notify</string>
+<string name="use_different_account">Use a different account</string>
 </resources>
