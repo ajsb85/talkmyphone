@@ -1,5 +1,7 @@
 package com.googlecode.talkmyphone;
 
+import com.googlecode.talkmyphone.Contacts.ContactsManager;
+
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
@@ -14,7 +16,7 @@ public class PhoneCallListener extends PhoneStateListener {
             case TelephonyManager.CALL_STATE_RINGING:
                 XmppService service = XmppService.getInstance();
                 if (service != null) {
-                    String contact = service.getContactName(incomingNumber);
+                    String contact = ContactsManager.getContactName(incomingNumber);
                     service.send(contact + " is calling");
                 }
                 break;

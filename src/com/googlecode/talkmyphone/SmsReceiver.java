@@ -1,5 +1,7 @@
 package com.googlecode.talkmyphone;
 
+import com.googlecode.talkmyphone.Contacts.ContactsManager;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -29,7 +31,7 @@ public class SmsReceiver extends BroadcastReceiver {
                     for (int i=0; i<msgs.length; i++) {
                         msgs[i] = SmsMessage.createFromPdu((byte[])pdus[i]);
                         builder.append("SMS from ");
-                        builder.append(service.getContactName(msgs[i].getOriginatingAddress()));
+                        builder.append(ContactsManager.getContactName(msgs[i].getOriginatingAddress()));
                         builder.append(": ");
                         builder.append(msgs[i].getMessageBody().toString());
                         builder.append("\n");
