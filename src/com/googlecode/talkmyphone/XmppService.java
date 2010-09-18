@@ -48,7 +48,7 @@ public class XmppService extends Service {
     private String mTo;
     private ConnectionConfiguration mConnectionConfiguration = null;
     private XMPPConnection mConnection = null;
-    private PacketListener mPacketListener;
+    private PacketListener mPacketListener = null;
     private boolean notifyApplicationConnection;
 
     // ring
@@ -174,10 +174,18 @@ public class XmppService extends Service {
     private void initConnection() {
         mConnection = new XMPPConnection(mConnectionConfiguration);
         try {
+            Toast.makeText(this, "Connecting to server...", Toast.LENGTH_SHORT).show();
             mConnection.connect();
+        } catch (XMPPException e) {
+            Toast.makeText(this, "Connection failed.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            Toast.makeText(this, "Loging in...", Toast.LENGTH_SHORT).show();
             mConnection.login(mLogin, mPassword);
         } catch (XMPPException e) {
-            e.printStackTrace();
+            Toast.makeText(this, "Log in failed", Toast.LENGTH_SHORT).show();
+            return;
         }
         /*
         Timer t = new Timer();
@@ -289,16 +297,15 @@ public class XmppService extends Service {
             // then, re-import preferences
             importPreferences();
 
-            // finally, init everything
-            initSmsMonitors();
             initBatteryMonitor();
+            initSmsMonitors();
             initMediaPlayer();
             initConnection();
+            // finally, init everything
 
-            if (mConnection.isConnected() && mConnection.isAuthenticated()) {
+            if (mConnection != null && mConnection.isConnected() && mConnection.isAuthenticated()) {
                 Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "TalkMyPhone failed to authenticate", Toast.LENGTH_SHORT).show();
                 onDestroy();
             }
         }
@@ -311,12 +318,6 @@ public class XmppService extends Service {
     @Override
     public IBinder onBind(Intent arg0) {
         return null;
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        _onStart();
     }
 
     @Override
@@ -339,13 +340,15 @@ public class XmppService extends Service {
     }
 
     /** sends a message to the user */
-    public void send(String message){
-        Message msg = new Message(mTo, Message.Type.chat);
-        msg.setBody(message);
-        mConnection.sendPacket(msg);
+    public void send(String message) {
+        if (mConnection != null && mConnection.isConnected() && mConnection.isAuthenticated()) {
+            Message msg = new Message(mTo, Message.Type.chat);
+            msg.setBody(message);
+            mConnection.sendPacket(msg);
+        }
     }
 
-    
+
     public void setLastRecipient(String phoneNumber) {
         lastRecipient = phoneNumber;
     }
@@ -362,10 +365,10 @@ public class XmppService extends Service {
                 command = commandLine;
                 args = "";
             }
-            
+
             // Not case sensitive commands
             command = command.toLowerCase();
-            
+
             if (command.equals("?")) {
                 StringBuilder builder = new StringBuilder();
                 builder.append("Available commands:\n");
@@ -453,7 +456,7 @@ public class XmppService extends Service {
             ArrayList<Phone> mobilePhones = ContactsManager.getMobilePhones(contact);
             if (mobilePhones.size() > 1) {
                 send("Specify more details:");
-                
+
                 for (Phone phone : mobilePhones) {
                     send(phone.contactName + " - " + phone.cleanNumber);
                 }
@@ -473,7 +476,7 @@ public class XmppService extends Service {
 
         if (contacts.size() > 0) {
             ContentResolver resolver = getContentResolver();
-            
+
             for (Contact contact : contacts) {
                 if(null != contact.id) {
                     Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
