@@ -1,6 +1,8 @@
 package com.googlecode.talkmyphone;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -14,6 +16,8 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -31,6 +35,7 @@ import android.os.IBinder;
 import android.provider.Settings;
 import android.telephony.gsm.SmsManager;
 import android.text.ClipboardManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.googlecode.talkmyphone.contacts.Contact;
@@ -38,6 +43,8 @@ import com.googlecode.talkmyphone.contacts.ContactsManager;
 import com.googlecode.talkmyphone.contacts.Phone;
 
 public class XmppService extends Service {
+
+    private static final int NOTIFICATION_ID = 1;
 
     // Service instance
     private static XmppService instance = null;
@@ -172,9 +179,9 @@ public class XmppService extends Service {
 
     /** init the XMPP connection */
     public void initConnection() {
-    	if (mConnectionConfiguration == null) {
-    		importPreferences();
-    	}
+        if (mConnectionConfiguration == null) {
+            importPreferences();
+        }
         mConnection = new XMPPConnection(mConnectionConfiguration);
         try {
             Toast.makeText(this, "Connecting to server...", Toast.LENGTH_SHORT).show();
@@ -219,12 +226,12 @@ public class XmppService extends Service {
             send("Welcome to TalkMyPhone. Send \"?\" for getting help");
         }
     }
-    
+
     /** returns true if the service is correctly connected */
     public boolean isConnected() {
-    	return    (mConnection != null 
-    			&& mConnection.isConnected() 
-    			&& mConnection.isAuthenticated());
+        return    (mConnection != null
+                && mConnection.isConnected()
+                && mConnection.isAuthenticated());
     }
 
     /** clear the battery monitor*/
@@ -300,7 +307,7 @@ public class XmppService extends Service {
             initSmsMonitors();
             initMediaPlayer();
             initConnection();
-            // finally, init everything
+            initNotificationStuff();
 
             if (isConnected()) {
                 Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
@@ -332,6 +339,8 @@ public class XmppService extends Service {
         clearMediaPlayer();
         clearBatteryMonitor();
         clearConnection();
+
+        stopForegroundCompat(NOTIFICATION_ID);
 
         instance = null;
 
@@ -563,5 +572,98 @@ public class XmppService extends Service {
         values.put("date", System.currentTimeMillis());
         values.put("body", message);
         getContentResolver().insert(Uri.parse("content://sms/sent"), values);
+    }
+
+    private static final Class[] mStartForegroundSignature = new Class[] {
+        int.class, Notification.class};
+    private static final Class[] mStopForegroundSignature = new Class[] {
+        boolean.class};
+
+    private NotificationManager mNM;
+    private Method mStartForeground;
+    private Method mStopForeground;
+    private Object[] mStartForegroundArgs = new Object[2];
+    private Object[] mStopForegroundArgs = new Object[1];
+
+    /**
+     * This is a wrapper around the new startForeground method, using the older
+     * APIs if it is not available.
+     */
+    void startForegroundCompat(int id, Notification notification) {
+        // If we have the new startForeground API, then use it.
+        if (mStartForeground != null) {
+            mStartForegroundArgs[0] = Integer.valueOf(id);
+            mStartForegroundArgs[1] = notification;
+            try {
+                mStartForeground.invoke(this, mStartForegroundArgs);
+            } catch (InvocationTargetException e) {
+                // Should not happen.
+                Log.w("ApiDemos", "Unable to invoke startForeground", e);
+            } catch (IllegalAccessException e) {
+                // Should not happen.
+                Log.w("ApiDemos", "Unable to invoke startForeground", e);
+            }
+            return;
+        }
+
+        // Fall back on the old API.
+        setForeground(true);
+        mNM.notify(id, notification);
+    }
+
+    /**
+     * This is a wrapper around the new stopForeground method, using the older
+     * APIs if it is not available.
+     */
+    void stopForegroundCompat(int id) {
+        // If we have the new stopForeground API, then use it.
+        if (mStopForeground != null) {
+            mStopForegroundArgs[0] = Boolean.TRUE;
+            try {
+                mStopForeground.invoke(this, mStopForegroundArgs);
+            } catch (InvocationTargetException e) {
+                // Should not happen.
+                Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+            } catch (IllegalAccessException e) {
+                // Should not happen.
+                Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+            }
+            return;
+        }
+
+        // Fall back on the old API.  Note to cancel BEFORE changing the
+        // foreground state, since we could be killed at that point.
+        mNM.cancel(id);
+        setForeground(false);
+    }
+
+    private void initNotificationStuff() {
+        mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+        try {
+            mStartForeground = getClass().getMethod("startForeground",
+                    mStartForegroundSignature);
+            mStopForeground = getClass().getMethod("stopForeground",
+                    mStopForegroundSignature);
+        } catch (NoSuchMethodException e) {
+            // Running on an older platform.
+            mStartForeground = mStopForeground = null;
+        }
+
+        Intent notificationIntent = new Intent(this, MainScreen.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+        // the next two lines initialize the Notification, using the configurations above
+        Notification notification = new Notification(
+                R.drawable.icon,
+                "TalkMyPhone starting.",
+                System.currentTimeMillis());
+
+        notification.setLatestEventInfo(
+                getApplicationContext(),
+                "TalkMyPhone",
+                "Application is starting",
+                contentIntent);
+        this.startForegroundCompat(NOTIFICATION_ID, notification);
+
     }
 }
