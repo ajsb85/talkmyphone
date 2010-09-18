@@ -158,7 +158,7 @@ public class XmppService extends Service {
     }
 
     /** clears the XMPP connection */
-    private void clearConnection() {
+    public void clearConnection() {
         if (mConnection != null) {
             if (mPacketListener != null) {
                 mConnection.removePacketListener(mPacketListener);
@@ -171,7 +171,10 @@ public class XmppService extends Service {
     }
 
     /** init the XMPP connection */
-    private void initConnection() {
+    public void initConnection() {
+    	if (mConnectionConfiguration == null) {
+    		importPreferences();
+    	}
         mConnection = new XMPPConnection(mConnectionConfiguration);
         try {
             Toast.makeText(this, "Connecting to server...", Toast.LENGTH_SHORT).show();
@@ -216,16 +219,12 @@ public class XmppService extends Service {
             send("Welcome to TalkMyPhone. Send \"?\" for getting help");
         }
     }
-
-    /** Reconnects using the current preferences (assumes the service is started)*/
-    public void reConnect() {
-        mConnection.disconnect();
-        try {
-            mConnection.connect();
-            mConnection.login(mLogin, mPassword);
-        } catch (XMPPException e) {
-            e.printStackTrace();
-        }
+    
+    /** returns true if the service is correctly connected */
+    public boolean isConnected() {
+    	return    (mConnection != null 
+    			&& mConnection.isConnected() 
+    			&& mConnection.isAuthenticated());
     }
 
     /** clear the battery monitor*/
@@ -303,7 +302,7 @@ public class XmppService extends Service {
             initConnection();
             // finally, init everything
 
-            if (mConnection != null && mConnection.isConnected() && mConnection.isAuthenticated()) {
+            if (isConnected()) {
                 Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
             } else {
                 onDestroy();
@@ -341,7 +340,7 @@ public class XmppService extends Service {
 
     /** sends a message to the user */
     public void send(String message) {
-        if (mConnection != null && mConnection.isConnected() && mConnection.isAuthenticated()) {
+        if (isConnected()) {
             Message msg = new Message(mTo, Message.Type.chat);
             msg.setBody(message);
             mConnection.sendPacket(msg);

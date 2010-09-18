@@ -10,12 +10,18 @@ public class NetworkConnectivityReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+
         XmppService service = XmppService.getInstance();
         if (service != null) {
-            ConnectivityManager conMan = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo networkInfo = conMan.getActiveNetworkInfo();
-            if (networkInfo.isConnected()) {
-                service.reConnect();
+            NetworkInfo network = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
+                // if no network, disconnect
+            if (network == null || !network.isAvailable()) {
+                service.clearConnection();
+            } else {
+                // connect if not already connected
+                if (network.isConnected() && !service.isConnected()) {
+                    service.initConnection();
+                }
             }
         }
     }
