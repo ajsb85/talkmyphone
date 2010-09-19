@@ -211,8 +211,9 @@ public class XmppService extends Service {
         mPacketListener = new PacketListener() {
             public void processPacket(Packet packet) {
                 Message message = (Message) packet;
-                if (message.getFrom().startsWith(mTo + "/")
-                && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
+                
+                if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase() + "/")
+                    && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
                 ) {
                     if (message.getBody() != null) {
                         onCommandReceived(message.getBody());
@@ -491,8 +492,8 @@ public class XmppService extends Service {
                     String columns[] = new String[] { "person", "body", "date", "status"};
                     Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + contact.id, null, null);
 
+                    send(contact.name);
                     if (c.getCount() > 0) {
-                        send(contact.name);
                         Integer i = 0;
                         for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
                             Date date = new Date();

@@ -15,7 +15,7 @@ import com.googlecode.talkmyphone.XmppService;
 public class ContactsManager {
 
     // Contact searching
-    private final static String cellPhonePattern = "0[67]\\d{8}";
+    private final static String cellPhonePattern = "0[67]\\d{8,}";
     private final static String internationalPrefix = "+33";
 
     /**
@@ -42,8 +42,11 @@ public class ContactsManager {
      */
     public static ArrayList<Contact> getMatchingContacts(String searchedName) {
         ArrayList<Contact> res = new ArrayList<Contact>();
-        if (!searchedName.equals(""))
-        {
+        if (isCellPhoneNumber(searchedName)) {
+            searchedName = getContactName(searchedName);
+        } 
+
+        if (!searchedName.equals("")) {
             ContentResolver resolver = XmppService.getInstance().getContentResolver();
             String[] projection = new String[] {
                     Contacts.People._ID,
