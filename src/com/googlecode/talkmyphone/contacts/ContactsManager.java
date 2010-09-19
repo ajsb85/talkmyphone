@@ -62,12 +62,90 @@ public class ContactsManager {
                         Contact contact = new Contact();
                         contact.id = id;
                         contact.name = contactName;
-                        // todo add address
                         res.add(contact);
                     }
                 }
             }
             c.close();
+        }
+        return res;
+    }
+
+    /**
+     * Returns a ArrayList of <ContactAddress> containing postal addresses which match to contact id
+     */
+    public static ArrayList<ContactAddress> getPostalAddresses(Long contactId) {
+        return getAddresses(contactId, Contacts.KIND_POSTAL);
+    }
+
+    /**
+     * Returns a ArrayList of <ContactAddress> containing email addresses which match to contact id
+     */
+    public static ArrayList<ContactAddress> getEmailAddresses(Long contactId) {
+        return getAddresses(contactId, Contacts.KIND_EMAIL);
+    }
+
+    /**
+     * Returns a ArrayList of <ContactAddress> which match to contact id
+     */
+    public static ArrayList<ContactAddress> getAddresses(Long contactId, int kind) {
+        ArrayList<ContactAddress> res = new ArrayList<ContactAddress>();
+        XmppService xmpp = XmppService.getInstance();
+        if(null != contactId) {
+            
+            String addrWhere = Contacts.ContactMethods.PERSON_ID + " = " + contactId + " and " + 
+                               Contacts.ContactMethodsColumns.KIND + " = " + kind;
+            Cursor c = xmpp.getContentResolver().query(Contacts.ContactMethods.CONTENT_URI, 
+                        null, addrWhere, null, null); 
+            while(c.moveToNext()) {
+                
+                String label = Tools.getString(c,Contacts.ContactMethodsColumns.LABEL);
+                int type = Tools.getLong(c,Contacts.ContactMethodsColumns.TYPE).intValue();
+                
+                if (label == null || label.compareTo("") != 0) {
+                    label = Contacts.ContactMethods.getDisplayLabel(xmpp.getBaseContext(), kind, type, "").toString();
+                }
+                
+                ContactAddress a = new ContactAddress();
+                a.address = Tools.getString(c, Contacts.ContactMethodsColumns.DATA);
+                a.label = label;
+                res.add(a);
+            } 
+            c.close();
+        }
+        return res;
+    }
+
+    /**
+     * Returns a ArrayList < Phone > of a specific contact
+     * ! phone.contactName not set
+     */
+    public static ArrayList<Phone> getPhones(Long contactId) {
+        ArrayList<Phone> res = new ArrayList<Phone>();
+        
+        Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, contactId);
+        Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
+        String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
+        Cursor c = XmppService.getInstance().getContentResolver().query(phonesUri, proj, null, null, null);
+
+        for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
+            String number = Tools.getString(c,Contacts.Phones.NUMBER);
+
+            String label = Tools.getString(c,Contacts.Phones.LABEL);
+            int type = Tools.getLong(c,Contacts.Phones.TYPE).intValue();
+
+            if (label == null || label.compareTo("") != 0) {
+                label = Contacts.Phones.getDisplayLabel(XmppService.getInstance().getBaseContext(), type, "").toString();
+            }
+
+            Phone phone = new Phone();
+            phone.number = number;
+            phone.cleanNumber = cleanPhoneNumber(phone.number);
+            phone.isCellPhoneNumber = isCellPhoneNumber(phone.number);
+            phone.label = label;
+            phone.type = type;
+
+            res.add(phone);
         }
         return res;
     }
@@ -91,32 +169,10 @@ public class ContactsManager {
             // get the matching contacts, dictionary of < id, names >
             ArrayList<Contact> contacts = getMatchingContacts(searchedText);
             if (contacts.size() > 0) {
-                ContentResolver resolver = XmppService.getInstance().getContentResolver();
-
                 for (Contact contact : contacts) {
-                    Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, contact.id);
-                    Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
-                    String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
-                    Cursor c = resolver.query(phonesUri, proj, null, null, null);
-
-                    for (boolean hasData = c.moveToFirst() ; hasData ; hasData = c.moveToNext()) {
-                        String number = Tools.getString(c,Contacts.Phones.NUMBER);
-
-                        String label = Tools.getString(c,Contacts.Phones.LABEL);
-                        int type = Tools.getLong(c,Contacts.Phones.TYPE).intValue();
-
-                        if (label == null || label.compareTo("") != 0) {
-                            label = Contacts.Phones.getDisplayLabel(XmppService.getInstance().getBaseContext(), type, "").toString();
-                        }
-
-                        Phone phone = new Phone();
-                        phone.number = number;
-                        phone.cleanNumber = cleanPhoneNumber(phone.number);
+                    ArrayList<Phone> phones = getPhones(contact.id);
+                    for (Phone phone : phones) {
                         phone.contactName = getContactName(contact.name);
-                        phone.isCellPhoneNumber = isCellPhoneNumber(phone.number);
-                        phone.label = label;
-                        phone.type = type;
-
                         res.add(phone);
                     }
                 }

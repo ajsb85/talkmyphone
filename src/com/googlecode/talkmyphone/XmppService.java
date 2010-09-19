@@ -33,8 +33,10 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.googlecode.talkmyphone.contacts.Contact;
+import com.googlecode.talkmyphone.contacts.ContactAddress;
 import com.googlecode.talkmyphone.contacts.ContactsManager;
 import com.googlecode.talkmyphone.contacts.Phone;
+import com.googlecode.talkmyphone.geo.GeoManager;
 import com.googlecode.talkmyphone.sms.Sms;
 import com.googlecode.talkmyphone.sms.SmsMmsManager;
 
@@ -354,7 +356,7 @@ public class XmppService extends Service {
 
     @Override
     public void onDestroy() {
-        stopLocatingPhone();
+        GeoManager.stopLocatingPhone();
 
         SmsMmsManager.clearSmsMonitors();
         clearMediaPlayer();
@@ -402,11 +404,12 @@ public class XmppService extends Service {
                 StringBuilder builder = new StringBuilder();
                 builder.append("Available commands:\n");
                 builder.append("- \"?\": shows this help.\n");
-                builder.append("- \"reply:message\": send a sms to your last recipient with content message.\n");
-                builder.append("- \"sms:contact[:message]\": sends a sms to number with content message or display last sent sms.\n");
+                builder.append("- \"reply:#message#\": send a sms to your last recipient with content message.\n");
+                builder.append("- \"sms:#contact#[:#message#]\": sends a sms to number with content message or display last sent sms.\n");
+                builder.append("- \"contact:#contact#\": display informations of a searched contact.\n");
                 builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
                 builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
-                builder.append("- \"copy:text\": copy text to clipboard\n");
+                builder.append("- \"copy:#text#\": copy text to clipboard\n");
                 builder.append("- paste links, open it with the appropriate app\n");
                 send(builder.toString());
             }
@@ -436,13 +439,16 @@ public class XmppService extends Service {
             else if (command.equals("copy")) {
                 copyToClipboard(args);
             }
+            else if (command.equals("contact")) {
+                displayContacts(args);
+            }
             else if (command.equals("where")) {
                 send("Start locating phone");
-                startLocatingPhone();
+                GeoManager.startLocatingPhone();
             }
             else if (command.equals("stop")) {
                 send("Stopping ongoing actions");
-                stopLocatingPhone();
+                GeoManager.stopLocatingPhone();
                 stopRinging();
             }
             else if (command.equals("ring")) {
@@ -512,18 +518,35 @@ public class XmppService extends Service {
         }
     }
 
-    /** Starts the geolocation service */
-    private void startLocatingPhone() {
-        Intent intent = new Intent(this, LocationService.class);
-        startService(intent);
-    }
+    /** reads (count) SMS from all contacts matching pattern */
+    public void displayContacts(String searchedText) {
 
-    /** Stops the geolocation service */
-    private void stopLocatingPhone() {
-        Intent intent = new Intent(this, LocationService.class);
-        stopService(intent);
-    }
+        ArrayList<Contact> contacts = ContactsManager.getMatchingContacts(searchedText);
 
+        if (contacts.size() > 0) {
+            for (Contact contact : contacts) {
+                send(contact.name);
+                
+                ArrayList<Phone> mobilePhones = ContactsManager.getPhones(contact.id);
+                for (Phone phone : mobilePhones) {
+                    send("\t" + phone.label + " - " + phone.cleanNumber);
+                }
+
+                ArrayList<ContactAddress> emails = ContactsManager.getEmailAddresses(contact.id);
+                for (ContactAddress email : emails) {
+                    send("\t" + email.label + " - " + email.address);
+                }
+
+                ArrayList<ContactAddress> addresses = ContactsManager.getPostalAddresses(contact.id);
+                for (ContactAddress address : addresses) {
+                    send("\t" + address.label + " - " + address.address);
+                }
+            }
+        } else {
+            send("No match for \"" + searchedText + "\"");
+        }
+    }
+    
     /** copy text to clipboard */
     private void copyToClipboard(String text) {
         try {

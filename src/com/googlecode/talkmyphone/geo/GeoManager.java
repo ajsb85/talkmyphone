@@ -3,6 +3,7 @@ package com.googlecode.talkmyphone.geo;
 import java.util.List;
 import java.util.Locale;
 
+import com.googlecode.talkmyphone.LocationService;
 import com.googlecode.talkmyphone.XmppService;
 
 import android.content.Intent;
@@ -13,8 +14,20 @@ import android.net.Uri;
 
 public class GeoManager {
     
+    /** Starts the geolocation service */
+    public static void startLocatingPhone() {
+        Intent intent = new Intent(XmppService.getInstance(), LocationService.class);
+        XmppService.getInstance().startService(intent);
+    }
+
+    /** Stops the geolocation service */
+    public static void stopLocatingPhone() {
+        Intent intent = new Intent(XmppService.getInstance(), LocationService.class);
+        XmppService.getInstance().stopService(intent);
+    }
+    
     /** launches google maps on the specified url */
-    private void maps(String url) {
+    public void maps(String url) {
         try {
             if(!url.startsWith("geo:")) {
                 url = "geo:0,0?q=" + url.replace(" ", "+");
@@ -29,7 +42,7 @@ public class GeoManager {
     }
 
     /** launches navigate on the specified url */
-    private void navigate(String url) {
+    public void navigate(String url) {
         try
         {
             if(!url.startsWith("google.navigation:")) {
@@ -44,7 +57,7 @@ public class GeoManager {
     }
 
     /** launches streetview on the specified url */
-    private void streetView(String url) {
+    public void streetView(String url) {
         try {
             Geocoder geo = new Geocoder(XmppService.getInstance().getBaseContext(), Locale.getDefault());
             List<Address> addresses = geo.getFromLocationName(url, 10);
