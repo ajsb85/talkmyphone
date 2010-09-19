@@ -88,6 +88,8 @@ public class XmppService extends Service {
     private Method mStopForeground;
     private Object[] mStartForegroundArgs = new Object[2];
     private Object[] mStopForegroundArgs = new Object[1];
+    private PendingIntent contentIntent = null;
+    private Notification notification = null;
 
     /**
      * This is a wrapper around the startForeground method, using the older
@@ -154,7 +156,13 @@ public class XmppService extends Service {
             // Running on an older platform.
             mStartForeground = mStopForeground = null;
         }
-
+        contentIntent =
+            PendingIntent.getActivity(
+                    this, 0, new Intent(this, MainScreen.class), 0);
+        notification = new Notification(
+                R.drawable.icon,
+                "TalkMyPhone is running.",
+                System.currentTimeMillis());
     }
 
     /** imports the preferences */
@@ -251,7 +259,8 @@ public class XmppService extends Service {
             if (mPacketListener != null) {
                 mConnection.removePacketListener(mPacketListener);
             }
-            mConnection.disconnect();
+            //commented since this seems to bug
+            //mConnection.disconnect();
         }
         mConnection = null;
         mPacketListener = null;
@@ -375,6 +384,15 @@ public class XmppService extends Service {
         {
             instance = this;
 
+            initNotificationStuff();
+            notification.setLatestEventInfo(
+                    getApplicationContext(),
+                    "TalkMyPhone",
+                    "Application is running",
+                    contentIntent);
+            // Makes the service virtually impossible to kill
+            this.startForegroundCompat(NOTIFICATION_ID, notification);
+
             // first, clean everything
             clearConnection();
             clearSmsMonitors();
@@ -388,28 +406,12 @@ public class XmppService extends Service {
             initSmsMonitors();
             initMediaPlayer();
             initConnection();
-            initNotificationStuff();
 
             if (isConnected()) {
                 Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
             } else {
                 onDestroy();
             }
-
-            Intent notificationIntent = new Intent(this, MainScreen.class);
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-            Notification notification = new Notification(
-                    R.drawable.icon,
-                    "TalkMyPhone is running.",
-                    System.currentTimeMillis());
-            notification.setLatestEventInfo(
-                    getApplicationContext(),
-                    "TalkMyPhone",
-                    "Application is running",
-                    contentIntent);
-
-            // Makes the service virtually impossible to kill
-            this.startForegroundCompat(NOTIFICATION_ID, notification);
         }
     }
 
