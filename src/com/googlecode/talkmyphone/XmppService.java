@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Date;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
@@ -15,25 +14,20 @@ import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 
-import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.telephony.gsm.SmsManager;
 import android.text.ClipboardManager;
 import android.util.Log;
 import android.widget.Toast;
@@ -41,6 +35,8 @@ import android.widget.Toast;
 import com.googlecode.talkmyphone.contacts.Contact;
 import com.googlecode.talkmyphone.contacts.ContactsManager;
 import com.googlecode.talkmyphone.contacts.Phone;
+import com.googlecode.talkmyphone.sms.Sms;
+import com.googlecode.talkmyphone.sms.SmsMmsManager;
 
 public class XmppService extends Service {
 
@@ -63,14 +59,6 @@ public class XmppService extends Service {
 
     // last person who sent sms/who we sent an sms to
     private String lastRecipient = null;
-
-    // intents for sms sending
-    PendingIntent sentPI = null;
-    PendingIntent deliveredPI = null;
-    BroadcastReceiver sentSmsReceiver = null;
-    BroadcastReceiver deliveredSmsReceiver = null;
-    private boolean notifySmsSent;
-    private boolean notifySmsDelivered;
 
     // battery
     private BroadcastReceiver mBatInfoReceiver = null;
@@ -182,77 +170,11 @@ public class XmppService extends Service {
         }
         notifyApplicationConnection = prefs.getBoolean("notifyApplicationConnection", true);
         notifyBattery = prefs.getBoolean("notifyBattery", true);
-        notifySmsSent = prefs.getBoolean("notifySmsSent", true);
-        notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
+        SmsMmsManager.notifySmsSent = prefs.getBoolean("notifySmsSent", true);
+        SmsMmsManager.notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
     }
 
-    /** clear the sms monitoring related stuff */
-    private void clearSmsMonitors() {
-        if (sentSmsReceiver != null) {
-            unregisterReceiver(sentSmsReceiver);
-        }
-        if (deliveredSmsReceiver != null) {
-            unregisterReceiver(deliveredSmsReceiver);
-        }
-        sentPI = null;
-        deliveredPI = null;
-        sentSmsReceiver = null;
-        deliveredSmsReceiver = null;
-    }
-
-    /** reinit sms monitors (that tell the user the status of the sms) */
-    private void initSmsMonitors() {
-        if (notifySmsSent) {
-            String SENT = "SMS_SENT";
-            sentPI = PendingIntent.getBroadcast(this, 0,
-                new Intent(SENT), 0);
-            sentSmsReceiver = new BroadcastReceiver(){
-                @Override
-                public void onReceive(Context arg0, Intent arg1) {
-                    switch (getResultCode())
-                    {
-                        case Activity.RESULT_OK:
-                            send("SMS sent");
-                            break;
-                        case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
-                            send("Generic failure");
-                            break;
-                        case SmsManager.RESULT_ERROR_NO_SERVICE:
-                            send("No service");
-                            break;
-                        case SmsManager.RESULT_ERROR_NULL_PDU:
-                            send("Null PDU");
-                            break;
-                        case SmsManager.RESULT_ERROR_RADIO_OFF:
-                            send("Radio off");
-                            break;
-                    }
-                }
-            };
-            registerReceiver(sentSmsReceiver, new IntentFilter(SENT));
-        }
-        if (notifySmsDelivered) {
-            String DELIVERED = "SMS_DELIVERED";
-            deliveredPI = PendingIntent.getBroadcast(this, 0,
-                    new Intent(DELIVERED), 0);
-            deliveredSmsReceiver = new BroadcastReceiver(){
-                @Override
-                public void onReceive(Context arg0, Intent arg1) {
-                    switch (getResultCode())
-                    {
-                        case Activity.RESULT_OK:
-                            send("SMS delivered");
-                            break;
-                        case Activity.RESULT_CANCELED:
-                            send("SMS not delivered");
-                            break;
-                    }
-                }
-            };
-            registerReceiver(deliveredSmsReceiver, new IntentFilter(DELIVERED));
-        }
-    }
-
+   
     /** clears the XMPP connection */
     public void clearConnection() {
         if (mConnection != null) {
@@ -396,7 +318,7 @@ public class XmppService extends Service {
 
             // first, clean everything
             clearConnection();
-            clearSmsMonitors();
+            SmsMmsManager.clearSmsMonitors();
             clearMediaPlayer();
             clearBatteryMonitor();
 
@@ -404,7 +326,7 @@ public class XmppService extends Service {
             importPreferences();
 
             initBatteryMonitor();
-            initSmsMonitors();
+            SmsMmsManager.initSmsMonitors();
             initMediaPlayer();
             initConnection();
 
@@ -434,7 +356,7 @@ public class XmppService extends Service {
     public void onDestroy() {
         stopLocatingPhone();
 
-        clearSmsMonitors();
+        SmsMmsManager.clearSmsMonitors();
         clearMediaPlayer();
         clearBatteryMonitor();
         clearConnection();
@@ -541,24 +463,11 @@ public class XmppService extends Service {
         }
     }
 
-    /** Sends a sms to the specified phone number */
-    public void sendSMSByPhoneNumber(String message, String phoneNumber) {
-        SmsManager sms = SmsManager.getDefault();
-        ArrayList<String> messages = sms.divideMessage(message);
-        send("Sending sms to " + ContactsManager.getContactName(phoneNumber));
-        for (int i=0; i < messages.size(); i++) {
-            if (i >= 1) {
-                send("sending part " + i + "/" + messages.size() + " of splitted message");
-            }
-            sms.sendTextMessage(phoneNumber, null, messages.get(i), sentPI, deliveredPI);
-            addSmsToSentBox(message, phoneNumber);
-        }
-    }
-
     /** sends a SMS to the specified contact */
     public void sendSMS(String message, String contact) {
         if (ContactsManager.isCellPhoneNumber(contact)) {
-            sendSMSByPhoneNumber(message, contact);
+            send("Sending sms to " + ContactsManager.getContactName(contact));
+            SmsMmsManager.sendSMSByPhoneNumber(message, contact);
         } else {
             ArrayList<Phone> mobilePhones = ContactsManager.getMobilePhones(contact);
             if (mobilePhones.size() > 1) {
@@ -569,7 +478,8 @@ public class XmppService extends Service {
                 }
             } else if (mobilePhones.size() == 1) {
                 Phone phone = mobilePhones.get(0);
-                sendSMSByPhoneNumber(message, phone.cleanNumber);
+                send("Sending sms to " + ContactsManager.getContactName(phone.cleanNumber));
+                SmsMmsManager.sendSMSByPhoneNumber(message, phone.cleanNumber);
             } else {
                 send("No match for \"" + contact + "\"");
             }
@@ -582,29 +492,19 @@ public class XmppService extends Service {
         ArrayList<Contact> contacts = ContactsManager.getMatchingContacts(searchedText);
 
         if (contacts.size() > 0) {
-            ContentResolver resolver = getContentResolver();
-
             for (Contact contact : contacts) {
-                if(null != contact.id) {
-                    Uri mSmsQueryUri = Uri.parse("content://sms/inbox");
-                    String columns[] = new String[] { "person", "body", "date", "status"};
-                    Cursor c = resolver.query(mSmsQueryUri, columns, "person = " + contact.id, null, null);
-
-                    send(contact.name);
-                    if (c.getCount() > 0) {
-                        Integer i = 0;
-                        for (boolean hasData = c.moveToFirst() ; hasData && i++ < count ; hasData = c.moveToNext()) {
-                            Date date = new Date();
-                            date.setTime(Long.parseLong(Tools.getString(c ,"date")));
-                            send( date.toLocaleString() + " - " + Tools.getString(c ,"body"));
-                        }
-                        if (i < count) {
-                            send("Only got " + i + " sms");
-                        }
-                    } else {
-                        send("No sms found");
+                ArrayList<Sms> smsList = SmsMmsManager.getSms(contact.id, count);
+ 
+                send(contact.name);
+                if (smsList.size() > 0) {
+                    for (Sms sms : smsList) {
+                        send(sms.date.toLocaleString() + " - " + sms.message);
+                    } 
+                    if (smsList.size() < count) {
+                        send("Only got " + smsList.size() + " sms");
                     }
-                    c.close();
+                } else {
+                    send("No sms found");
                 }
             }
         } else {
@@ -663,14 +563,4 @@ public class XmppService extends Service {
     private void stopRinging() {
         mMediaPlayer.stop();
     }
-
-    /** Adds the text of the message to the sent box */
-    private void addSmsToSentBox(String message, String phoneNumber) {
-        ContentValues values = new ContentValues();
-        values.put("address", phoneNumber);
-        values.put("date", System.currentTimeMillis());
-        values.put("body", message);
-        getContentResolver().insert(Uri.parse("content://sms/sent"), values);
-    }
-
 }
