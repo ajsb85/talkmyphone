@@ -8,7 +8,7 @@
             android:title="@string/notified_address"
             android:key="notifiedAddress"
             android:defaultValue="your.login@gmail.com"
-            android:summary="Put here your gmail address"/>
+            android:summary="Enter your gmail address"/>
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/connection_settings" android:key="ConnectionSettings">
@@ -27,24 +27,24 @@
             android:key="password"
             android:password="true"
             android:title="@string/password"
-            android:summary="Put here your gmail password or the password used by the phone to connect"/>
+            android:summary="Enter your gmail password or the password used by the phone to connect"/>
         <PreferenceScreen
             android:title="@string/additionnal_settings">
             <EditTextPreference
                 android:title="@string/server_host"
                 android:key="serverHost"
-                android:summary="Server host the phone uses to connect"
+                android:summary="Server host used by the phone"
                 android:defaultValue="talk.google.com"/>
             <com.googlecode.talkmyphone.EditIntegerPreference
                 android:key="serverPort"
                 android:numeric="integer"
                 android:defaultValue="5222"
-                android:summary="Server port the phone uses to connect"
+                android:summary="Server port the phone used by the phone"
                 android:title="@string/server_port"/>
             <EditTextPreference
                 android:title="@string/service_name"
                 android:key="serviceName"
-                android:summary="Service name the phone uses to connect"
+                android:summary="Service name the phone used by the phone"
                 android:defaultValue="gmail.com"/>
         </PreferenceScreen>
     </PreferenceCategory>
@@ -62,31 +62,32 @@
             android:defaultValue="true"
             android:title="@string/application_connection"
             android:key="notifyApplicationConnection"
-            android:summary="Notify each time the phone reconnects"/>
+            android:summary="Phone reconnect notification"/>
         <CheckBoxPreference
             android:key="notifyBattery"
             android:defaultValue="true"
             android:title="@string/battery_state"
-            android:summary="Notify each time the battery state changes"/>
+            android:summary="Battery state notification"/>
         <CheckBoxPreference
             android:key="notifyIncomingSms"
             android:defaultValue="true"
             android:title="@string/incoming_sms"
-            android:summary="Notify for incoming sms"/>
+            android:summary="Incoming SMS notification"/>
         <CheckBoxPreference
             android:key="notifyIncomingCalls"
             android:defaultValue="true"
             android:title="@string/incoming_calls"
-            android:summary="Notify for incoming calls"/>
+            android:summary="Incoming call notification"/>
         <CheckBoxPreference
             android:key="notifySmsSent"
             android:defaultValue="true"
             android:title="@string/sms_sent"
-            android:summary="Confirm when the sms you write are sent"/>
+            android:summary="SMS sent notification"/>
         <CheckBoxPreference
             android:key="notifySmsDelivered"
             android:defaultValue="true"
             android:title="@string/sms_delivered"
-            android:summary="Confirm when the sms you write are delivered"/>
+            android:summary="SMS delivery notification"/>
     </PreferenceCategory>
 </PreferenceScreen>
+
