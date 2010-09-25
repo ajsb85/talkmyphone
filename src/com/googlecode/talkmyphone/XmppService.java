@@ -176,7 +176,7 @@ public class XmppService extends Service {
         SmsMmsManager.notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
     }
 
-   
+
     /** clears the XMPP connection */
     public void clearConnection() {
         if (mConnection != null) {
@@ -184,7 +184,9 @@ public class XmppService extends Service {
                 mConnection.removePacketListener(mPacketListener);
             }
             //commented since this seems to bug
-            //mConnection.disconnect();
+            if (isConnected()) {
+                mConnection.disconnect();
+            }
         }
         mConnection = null;
         mPacketListener = null;
@@ -225,7 +227,7 @@ public class XmppService extends Service {
         mPacketListener = new PacketListener() {
             public void processPacket(Packet packet) {
                 Message message = (Message) packet;
-                
+
                 if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase() + "/")
                     && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
                 ) {
@@ -500,12 +502,12 @@ public class XmppService extends Service {
         if (contacts.size() > 0) {
             for (Contact contact : contacts) {
                 ArrayList<Sms> smsList = SmsMmsManager.getSms(contact.id, count);
- 
+
                 send(contact.name);
                 if (smsList.size() > 0) {
                     for (Sms sms : smsList) {
                         send(sms.date.toLocaleString() + " - " + sms.message);
-                    } 
+                    }
                     if (smsList.size() < count) {
                         send("Only got " + smsList.size() + " sms");
                     }
@@ -526,7 +528,7 @@ public class XmppService extends Service {
         if (contacts.size() > 0) {
             for (Contact contact : contacts) {
                 send(contact.name);
-                
+
                 ArrayList<Phone> mobilePhones = ContactsManager.getPhones(contact.id);
                 for (Phone phone : mobilePhones) {
                     send("\t" + phone.label + " - " + phone.cleanNumber);
@@ -546,7 +548,7 @@ public class XmppService extends Service {
             send("No match for \"" + searchedText + "\"");
         }
     }
-    
+
     /** copy text to clipboard */
     private void copyToClipboard(String text) {
         try {
