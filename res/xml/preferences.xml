@@ -39,13 +39,11 @@
                 android:key="serverPort"
                 android:numeric="integer"
                 android:defaultValue="5222"
-                android:summary="Server port the phone used by the phone"
-                android:title="@string/server_port"/>
+                android:title="@string/server_port" android:summary="Server port used by the phone"/>
             <EditTextPreference
                 android:title="@string/service_name"
                 android:key="serviceName"
-                android:summary="Service name the phone used by the phone"
-                android:defaultValue="gmail.com"/>
+                android:defaultValue="gmail.com" android:summary="Service name used by the phone"/>
         </PreferenceScreen>
     </PreferenceCategory>
 
