@@ -336,7 +336,7 @@ public class XmppService extends Service {
 
     /** init the media player */
     private void initMediaPlayer() {
-        canRing = false;
+        canRing = true;
         Uri alert = Uri.parse(ringtone);
         mMediaPlayer = new MediaPlayer();
         try {
