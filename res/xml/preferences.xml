@@ -55,7 +55,11 @@
             android:key="startAtBoot"
             android:title="@string/start_at_boot"
             android:summary="Check if you want TalkMyPhone to start at boot"/>
-    </PreferenceCategory>
+        <RingtonePreference
+            android:title="@string/ringtone"
+            android:key="ringtone"
+            android:summary="Ringtone to use with the ring command"/>
+</PreferenceCategory>
 
     <PreferenceCategory android:title="@string/notify_me_on" android:key="Notifications">
         <CheckBoxPreference

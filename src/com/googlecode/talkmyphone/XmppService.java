@@ -1,6 +1,5 @@
 package com.googlecode.talkmyphone;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -64,6 +63,8 @@ public class XmppService extends Service {
 
     // ring
     private MediaPlayer mMediaPlayer = null;
+    private String ringtone = null;
+    private boolean canRing;
 
     // last person who sent sms/who we sent an sms to
     private String lastRecipient = null;
@@ -221,6 +222,7 @@ public class XmppService extends Service {
         notifyBattery = prefs.getBoolean("notifyBattery", true);
         SmsMmsManager.notifySmsSent = prefs.getBoolean("notifySmsSent", true);
         SmsMmsManager.notifySmsDelivered = prefs.getBoolean("notifySmsDelivered", true);
+        ringtone = prefs.getString("ringtone", Settings.System.DEFAULT_RINGTONE_URI.toString());
     }
 
 
@@ -334,13 +336,14 @@ public class XmppService extends Service {
 
     /** init the media player */
     private void initMediaPlayer() {
-        Uri alert = Settings.System.DEFAULT_RINGTONE_URI ;
+        canRing = false;
+        Uri alert = Uri.parse(ringtone);
         mMediaPlayer = new MediaPlayer();
         try {
             mMediaPlayer.setDataSource(this, alert);
         } catch (Exception e) {
             Toast.makeText(this, "Could not find default ringtone", Toast.LENGTH_SHORT).show();
-            onDestroy();
+            canRing = false;
         }
         mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
         mMediaPlayer.setLooping(true);
@@ -619,13 +622,11 @@ public class XmppService extends Service {
     /** makes the phone ring */
     private void ring() {
         final AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
+        if (canRing && audioManager.getStreamVolume(AudioManager.STREAM_ALARM) != 0) {
             try {
                 mMediaPlayer.prepare();
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                Toast.makeText(this, "Unable to ring", Toast.LENGTH_SHORT).show();
             }
             mMediaPlayer.start();
         }
@@ -633,6 +634,8 @@ public class XmppService extends Service {
 
     /** Stops the phone from ringing */
     private void stopRinging() {
-        mMediaPlayer.stop();
+        if (canRing) {
+            mMediaPlayer.stop();
+        }
     }
 }
