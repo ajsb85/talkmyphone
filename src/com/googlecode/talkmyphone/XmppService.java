@@ -269,7 +269,7 @@ public class XmppService extends Service {
             public void processPacket(Packet packet) {
                 Message message = (Message) packet;
 
-                if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase())
+                if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase() + "/")
                     && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
                 ) {
                     if (message.getBody() != null) {
