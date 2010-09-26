@@ -42,7 +42,13 @@ import com.googlecode.talkmyphone.sms.SmsMmsManager;
 
 public class XmppService extends Service {
 
-    private static final int NOTIFICATION_ID = 1;
+    private static final int NOTIFICATION_ID_RUNNING = 1;
+    private static final int DISCONNECTED = 2;
+    private static final int CONNECTING = 3;
+    private static final int CONNECTED = 4;
+
+    // Indicates the current state of the service (disconnected/connecting/connected)
+    private int mStatus = DISCONNECTED;
 
     // Service instance
     private static XmppService instance = null;
@@ -79,8 +85,53 @@ public class XmppService extends Service {
     private Object[] mStartForegroundArgs = new Object[2];
     private Object[] mStopForegroundArgs = new Object[1];
     private PendingIntent contentIntent = null;
-    private Notification notification = null;
 
+    /** Updates the status about the service state (and the statusbar)*/
+    private void updateStatus(int status) {
+        if (status != mStatus) {
+            mNM.cancel(mStatus);
+            Notification notification = new Notification();
+            switch(status) {
+                case CONNECTED:
+                    notification = new Notification(
+                            R.drawable.status_green,
+                            "Connected",
+                            System.currentTimeMillis());
+                    notification.setLatestEventInfo(
+                            getApplicationContext(),
+                            "TalkMyPhone",
+                            "Connected",
+                            contentIntent);
+                    break;
+                case CONNECTING:
+                    notification = new Notification(
+                            R.drawable.status_orange,
+                            "Connecting...",
+                            System.currentTimeMillis());
+                    notification.setLatestEventInfo(
+                            getApplicationContext(),
+                            "TalkMyPhone",
+                            "Connecting...",
+                            contentIntent);
+                    break;
+                case DISCONNECTED:
+                    notification = new Notification(
+                            R.drawable.status_red,
+                            "Disconnected",
+                            System.currentTimeMillis());
+                    notification.setLatestEventInfo(
+                            getApplicationContext(),
+                            "TalkMyPhone",
+                            "Disconnected",
+                            contentIntent);
+                    break;
+                default:
+                    break;
+            }
+            mStatus = status;
+            mNM.notify(status, notification);
+        }
+    }
     /**
      * This is a wrapper around the startForeground method, using the older
      * APIs if it is not available.
@@ -149,10 +200,6 @@ public class XmppService extends Service {
         contentIntent =
             PendingIntent.getActivity(
                     this, 0, new Intent(this, MainScreen.class), 0);
-        notification = new Notification(
-                R.drawable.icon,
-                "TalkMyPhone is running.",
-                System.currentTimeMillis());
     }
 
     /** imports the preferences */
@@ -183,7 +230,7 @@ public class XmppService extends Service {
             if (mPacketListener != null) {
                 mConnection.removePacketListener(mPacketListener);
             }
-            //commented since this seems to bug
+            // don't try to disconnect if already disconnected
             if (isConnected()) {
                 mConnection.disconnect();
             }
@@ -191,44 +238,36 @@ public class XmppService extends Service {
         mConnection = null;
         mPacketListener = null;
         mConnectionConfiguration = null;
+        updateStatus(DISCONNECTED);
     }
 
     /** init the XMPP connection */
     public void initConnection() {
+        updateStatus(CONNECTING);
         if (mConnectionConfiguration == null) {
             importPreferences();
         }
         mConnection = new XMPPConnection(mConnectionConfiguration);
         try {
-            Toast.makeText(this, "Connecting to server...", Toast.LENGTH_SHORT).show();
             mConnection.connect();
         } catch (XMPPException e) {
             Toast.makeText(this, "Connection failed.", Toast.LENGTH_SHORT).show();
+            updateStatus(DISCONNECTED);
             return;
         }
         try {
-            Toast.makeText(this, "Loging in...", Toast.LENGTH_SHORT).show();
             mConnection.login(mLogin, mPassword);
         } catch (XMPPException e) {
-            Toast.makeText(this, "Log in failed", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Login failed", Toast.LENGTH_SHORT).show();
+            updateStatus(DISCONNECTED);
             return;
         }
-        /*
-        Timer t = new Timer();
-        t.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    Presence presence = new Presence(Presence.Type.available);
-                    mConnection.sendPacket(presence);
-                }
-            }, 0, 60*1000);
-        */
         PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
         mPacketListener = new PacketListener() {
             public void processPacket(Packet packet) {
                 Message message = (Message) packet;
 
-                if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase() + "/")
+                if (    message.getFrom().toLowerCase().startsWith(mTo.toLowerCase())
                     && !message.getFrom().equals(mConnection.getUser()) // filters self-messages
                 ) {
                     if (message.getBody() != null) {
@@ -238,6 +277,7 @@ public class XmppService extends Service {
             }
         };
         mConnection.addPacketListener(mPacketListener, filter);
+        updateStatus(CONNECTED);
         // Send welcome message
         if (notifyApplicationConnection) {
             send("Welcome to TalkMyPhone. Send \"?\" for getting help");
@@ -298,11 +338,12 @@ public class XmppService extends Service {
         mMediaPlayer = new MediaPlayer();
         try {
             mMediaPlayer.setDataSource(this, alert);
-            mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-            mMediaPlayer.setLooping(true);
         } catch (Exception e) {
-            e.printStackTrace();
+            Toast.makeText(this, "Could not find default ringtone", Toast.LENGTH_SHORT).show();
+            onDestroy();
         }
+        mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+        mMediaPlayer.setLooping(true);
     }
 
     private void _onStart() {
@@ -312,13 +353,20 @@ public class XmppService extends Service {
             instance = this;
 
             initNotificationStuff();
+
+            Notification notification = new Notification(
+                    R.drawable.icon,
+                    "TalkMyPhone is running.",
+                    System.currentTimeMillis());
             notification.setLatestEventInfo(
                     getApplicationContext(),
                     "TalkMyPhone",
                     "Application is running",
                     contentIntent);
+            notification.flags |= Notification.FLAG_ONGOING_EVENT;
+            notification.flags |= Notification.FLAG_NO_CLEAR;
             // Makes the service virtually impossible to kill
-            this.startForegroundCompat(NOTIFICATION_ID, notification);
+            this.startForegroundCompat(NOTIFICATION_ID_RUNNING, notification);
 
             // first, clean everything
             clearConnection();
@@ -334,9 +382,7 @@ public class XmppService extends Service {
             initMediaPlayer();
             initConnection();
 
-            if (isConnected()) {
-                Toast.makeText(this, "TalkMyPhone started", Toast.LENGTH_SHORT).show();
-            } else {
+            if (!isConnected()) {
                 onDestroy();
             }
         }
@@ -365,7 +411,8 @@ public class XmppService extends Service {
         clearBatteryMonitor();
         clearConnection();
 
-        stopForegroundCompat(NOTIFICATION_ID);
+        mNM.cancel(mStatus);
+        stopForegroundCompat(NOTIFICATION_ID_RUNNING);
 
         instance = null;
 
@@ -412,7 +459,7 @@ public class XmppService extends Service {
                 builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
                 builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
                 builder.append("- \"copy:#text#\": copy text to clipboard\n");
-                builder.append("- paste links, open it with the appropriate app\n");
+                builder.append("and you can paste links and open it with the appropriate app\n");
                 send(builder.toString());
             }
             else if (command.equals("sms")) {
