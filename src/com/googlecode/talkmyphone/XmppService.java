@@ -41,10 +41,9 @@ import com.googlecode.talkmyphone.sms.SmsMmsManager;
 
 public class XmppService extends Service {
 
-    private static final int NOTIFICATION_ID_RUNNING = 1;
-    private static final int DISCONNECTED = 2;
-    private static final int CONNECTING = 3;
-    private static final int CONNECTED = 4;
+    private static final int DISCONNECTED = 0;
+    private static final int CONNECTING = 1;
+    private static final int CONNECTED = 2;
 
     // Indicates the current state of the service (disconnected/connecting/connected)
     private int mStatus = DISCONNECTED;
@@ -90,7 +89,6 @@ public class XmppService extends Service {
     /** Updates the status about the service state (and the statusbar)*/
     private void updateStatus(int status) {
         if (status != mStatus) {
-            mNM.cancel(mStatus);
             Notification notification = new Notification();
             switch(status) {
                 case CONNECTED:
@@ -129,8 +127,11 @@ public class XmppService extends Service {
                 default:
                     break;
             }
+            notification.flags |= Notification.FLAG_ONGOING_EVENT;
+            notification.flags |= Notification.FLAG_NO_CLEAR;
+            stopForegroundCompat(mStatus);
+            startForegroundCompat(status, notification);
             mStatus = status;
-            mNM.notify(status, notification);
         }
     }
     /**
@@ -342,7 +343,6 @@ public class XmppService extends Service {
         try {
             mMediaPlayer.setDataSource(this, alert);
         } catch (Exception e) {
-            Toast.makeText(this, "Could not find default ringtone", Toast.LENGTH_SHORT).show();
             canRing = false;
         }
         mMediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
@@ -357,19 +357,7 @@ public class XmppService extends Service {
 
             initNotificationStuff();
 
-            Notification notification = new Notification(
-                    R.drawable.icon,
-                    "TalkMyPhone is running.",
-                    System.currentTimeMillis());
-            notification.setLatestEventInfo(
-                    getApplicationContext(),
-                    "TalkMyPhone",
-                    "Application is running",
-                    contentIntent);
-            notification.flags |= Notification.FLAG_ONGOING_EVENT;
-            notification.flags |= Notification.FLAG_NO_CLEAR;
-            // Makes the service virtually impossible to kill
-            this.startForegroundCompat(NOTIFICATION_ID_RUNNING, notification);
+            updateStatus(DISCONNECTED);
 
             // first, clean everything
             clearConnection();
@@ -414,8 +402,7 @@ public class XmppService extends Service {
         clearBatteryMonitor();
         clearConnection();
 
-        mNM.cancel(mStatus);
-        stopForegroundCompat(NOTIFICATION_ID_RUNNING);
+        stopForegroundCompat(mStatus);
 
         instance = null;
 
@@ -626,7 +613,8 @@ public class XmppService extends Service {
             try {
                 mMediaPlayer.prepare();
             } catch (Exception e) {
-                Toast.makeText(this, "Unable to ring", Toast.LENGTH_SHORT).show();
+                canRing = false;
+                send("Unable to ring, change the ringtone in the options");
             }
             mMediaPlayer.start();
         }
