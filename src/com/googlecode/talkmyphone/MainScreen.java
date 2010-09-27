@@ -1,5 +1,7 @@
 package com.googlecode.talkmyphone;
 
+import com.googlecode.talkmyphone.R;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -17,24 +19,27 @@ public class MainScreen extends Activity {
 
         Button prefBtn = (Button) findViewById(R.id.Preferences);
         prefBtn.setOnClickListener(new OnClickListener() {
-            public void onClick(View v) {
-                Intent settingsActivity = new Intent(getBaseContext(), Preferences.class);
-                startActivity(settingsActivity);
-            }
+
+                public void onClick(View v) {
+                    Intent settingsActivity = new Intent(getBaseContext(), Preferences.class);
+                    startActivity(settingsActivity);
+                }
         });
 
         Button startStopButton = (Button) findViewById(R.id.StartStop);
         startStopButton.setOnClickListener(new OnClickListener() {
-            public void onClick(View v) {
-                Intent intent = new Intent(".TalkMyPhone.ACTION");
-                if (XmppService.getInstance() == null) {
-                    startService(intent);
+                public void onClick(View v) {
+                    Intent intent = new Intent(".TalkMyPhone.ACTION");
+                    if (XmppService.getInstance() == null) {
+                        startService(intent);
+                    }
+                    else {
+                        stopService(intent);
+                    }
                 }
-                else {
-                    stopService(intent);
-                }
-            }
         });
 
     }
+
+
 }

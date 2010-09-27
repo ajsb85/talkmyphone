@@ -3,7 +3,6 @@ package com.googlecode.talkmyphone;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
@@ -23,7 +22,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.location.Address;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -450,7 +448,6 @@ public class XmppService extends Service {
                 builder.append("- \"contact:#contact#\": display informations of a searched contact.\n");
                 builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
                 builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
-                builder.append("- \"geo:#address#\": Open Maps or Navigation or Street view on specific address\n");
                 builder.append("- \"copy:#text#\": copy text to clipboard\n");
                 builder.append("and you can paste links and open it with the appropriate app\n");
                 send(builder.toString());
@@ -483,9 +480,6 @@ public class XmppService extends Service {
             }
             else if (command.equals("contact")) {
                 displayContacts(args);
-            }
-            else if (command.equals("geo")) {
-                geo(args);
             }
             else if (command.equals("where")) {
                 send("Start locating phone");
@@ -589,27 +583,6 @@ public class XmppService extends Service {
             }
         } else {
             send("No match for \"" + searchedText + "\"");
-        }
-    }
-
-    /** Open geolocalization application */
-    private void geo(String text) {
-        List<Address> addresses = GeoManager.geoDecode(text);
-        if (addresses != null) {
-            if (addresses.size() > 1) {
-                send("Specify more details:");
-                for (Address address : addresses) {
-                    StringBuilder addr = new StringBuilder();
-                    for (int i = 0; i < address.getMaxAddressLineIndex(); i++) {
-                        addr.append(address.getAddressLine(i) + "\n");
-                    }
-                    send(addr.toString());
-                }
-            } else if (addresses.size() == 1) {
-                GeoManager.launchExternal(addresses.get(0).getLatitude() + "," + addresses.get(0).getLongitude());
-            }
-        } else {
-            send("No match for \"" + text + "\"");
         }
     }
 
