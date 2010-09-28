@@ -1,0 +1,11 @@
+2.05-beta
+* hidden phone numbers fixed
+* only one icon in the statusbar
+* corrected ringtone bug
+
+2.04-beta
+* corrected typos/grammar
+* made the ringtone a choice
+* notifications for connection state
+* corrected the never disconnect bug
+* corrected case sensitivity on login
