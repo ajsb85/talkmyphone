@@ -23,16 +23,21 @@ public class ContactsManager {
      * If not found, returns the argument.
      */
     public static String getContactName (String phoneNumber) {
-        String res = phoneNumber;
-        ContentResolver resolver = XmppService.getInstance().getContentResolver();
-        String[] projection = new String[] {
-                Contacts.Phones.DISPLAY_NAME,
-                Contacts.Phones.NUMBER };
-        Uri contactUri = Uri.withAppendedPath(Contacts.Phones.CONTENT_FILTER_URL, Uri.encode(phoneNumber));
-        Cursor c = resolver.query(contactUri, projection, null, null, null);
-        if (c.moveToFirst()) {
-            String name = c.getString(c.getColumnIndex(Contacts.Phones.DISPLAY_NAME));
-            res = name;
+        String res;
+        if (phoneNumber != null) {
+            res = phoneNumber;
+            ContentResolver resolver = XmppService.getInstance().getContentResolver();
+            String[] projection = new String[] {
+                    Contacts.Phones.DISPLAY_NAME,
+                    Contacts.Phones.NUMBER };
+            Uri contactUri = Uri.withAppendedPath(Contacts.Phones.CONTENT_FILTER_URL, Uri.encode(phoneNumber));
+            Cursor c = resolver.query(contactUri, projection, null, null, null);
+            if (c.moveToFirst()) {
+                String name = c.getString(c.getColumnIndex(Contacts.Phones.DISPLAY_NAME));
+                res = name;
+            }
+        } else {
+            res = "[hidden number]";
         }
         return res;
     }
@@ -44,7 +49,7 @@ public class ContactsManager {
         ArrayList<Contact> res = new ArrayList<Contact>();
         if (isCellPhoneNumber(searchedName)) {
             searchedName = getContactName(searchedName);
-        } 
+        }
 
         if (!searchedName.equals("")) {
             ContentResolver resolver = XmppService.getInstance().getContentResolver();
@@ -92,25 +97,25 @@ public class ContactsManager {
         ArrayList<ContactAddress> res = new ArrayList<ContactAddress>();
         XmppService xmpp = XmppService.getInstance();
         if(null != contactId) {
-            
-            String addrWhere = Contacts.ContactMethods.PERSON_ID + " = " + contactId + " and " + 
+
+            String addrWhere = Contacts.ContactMethods.PERSON_ID + " = " + contactId + " and " +
                                Contacts.ContactMethodsColumns.KIND + " = " + kind;
-            Cursor c = xmpp.getContentResolver().query(Contacts.ContactMethods.CONTENT_URI, 
-                        null, addrWhere, null, null); 
+            Cursor c = xmpp.getContentResolver().query(Contacts.ContactMethods.CONTENT_URI,
+                        null, addrWhere, null, null);
             while(c.moveToNext()) {
-                
+
                 String label = Tools.getString(c,Contacts.ContactMethodsColumns.LABEL);
                 int type = Tools.getLong(c,Contacts.ContactMethodsColumns.TYPE).intValue();
-                
+
                 if (label == null || label.compareTo("") != 0) {
                     label = Contacts.ContactMethods.getDisplayLabel(xmpp.getBaseContext(), kind, type, "").toString();
                 }
-                
+
                 ContactAddress a = new ContactAddress();
                 a.address = Tools.getString(c, Contacts.ContactMethodsColumns.DATA);
                 a.label = label;
                 res.add(a);
-            } 
+            }
             c.close();
         }
         return res;
@@ -122,7 +127,7 @@ public class ContactsManager {
      */
     public static ArrayList<Phone> getPhones(Long contactId) {
         ArrayList<Phone> res = new ArrayList<Phone>();
-        
+
         Uri personUri = ContentUris.withAppendedId(People.CONTENT_URI, contactId);
         Uri phonesUri = Uri.withAppendedPath(personUri, People.Phones.CONTENT_DIRECTORY);
         String[] proj = new String[] {Contacts.Phones.NUMBER, Contacts.Phones.LABEL, Contacts.Phones.TYPE};
