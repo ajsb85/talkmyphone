@@ -3,6 +3,7 @@ package com.googlecode.talkmyphone;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
@@ -22,6 +23,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.location.Address;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -420,7 +422,10 @@ public class XmppService extends Service {
 
 
     public void setLastRecipient(String phoneNumber) {
-        lastRecipient = phoneNumber;
+        if (lastRecipient == null || !phoneNumber.equals(lastRecipient)) {
+            lastRecipient = phoneNumber;
+            displayLastRecipient(phoneNumber);
+        }
     }
 
     /** handles the different commands */
@@ -446,6 +451,7 @@ public class XmppService extends Service {
                 builder.append("- \"reply:#message#\": send a sms to your last recipient with content message.\n");
                 builder.append("- \"sms:#contact#[:#message#]\": sends a sms to number with content message or display last sent sms.\n");
                 builder.append("- \"contact:#contact#\": display informations of a searched contact.\n");
+                //builder.append("- \"geo:#address#\": Open Maps or Navigation or Street view on specific address\n");
                 builder.append("- \"where\": sends you google map updates about the location of the phone until you send \"stop\"\n");
                 builder.append("- \"ring\": rings the phone until you send \"stop\"\n");
                 builder.append("- \"copy:#text#\": copy text to clipboard\n");
@@ -461,11 +467,13 @@ public class XmppService extends Service {
                     setLastRecipient(contact);
                     message = args.substring(separatorPos + 1);
                     sendSMS(message, contact);
-                } else {
+                } else if (args.length() > 0) {
                     // todo set number of SMS into parameters
                     // display received SMS and sent SMS
                     contact = args;
                     readSMS(contact, 5);
+                } else {
+                    displayLastRecipient(lastRecipient);
                 }
             }
             else if (command.equals("reply")) {
@@ -478,6 +486,9 @@ public class XmppService extends Service {
             else if (command.equals("copy")) {
                 copyToClipboard(args);
             }
+//            else if (command.equals("geo")) {
+//                geo(args);
+//            } 
             else if (command.equals("contact")) {
                 displayContacts(args);
             }
@@ -523,7 +534,7 @@ public class XmppService extends Service {
                 }
             } else if (mobilePhones.size() == 1) {
                 Phone phone = mobilePhones.get(0);
-                send("Sending sms to " + ContactsManager.getContactName(phone.cleanNumber));
+                send("Sending sms to " + phone.contactName + " (" + phone.cleanNumber + ")");
                 SmsMmsManager.sendSMSByPhoneNumber(message, phone.cleanNumber);
             } else {
                 send("No match for \"" + contact + "\"");
@@ -557,6 +568,18 @@ public class XmppService extends Service {
         }
     }
 
+    public void displayLastRecipient(String phoneNumber) {
+        if (phoneNumber == null) {
+            send("Reply contact is not set");
+        } else {
+            String contact = ContactsManager.getContactName(phoneNumber);
+            if (ContactsManager.isCellPhoneNumber(phoneNumber) && contact.compareTo(phoneNumber) != 0){
+                contact += " (" + phoneNumber + ")";
+            }
+            send("Reply contact is now " + contact);
+        }
+    }
+
     /** reads (count) SMS from all contacts matching pattern */
     public void displayContacts(String searchedText) {
 
@@ -586,6 +609,27 @@ public class XmppService extends Service {
         }
     }
 
+    /** Open geolocalization application */
+    private void geo(String text) {
+        List<Address> addresses = GeoManager.geoDecode(text);
+        if (addresses != null) {
+            if (addresses.size() > 1) {
+                send("Specify more details:");
+                for (Address address : addresses) {
+                    StringBuilder addr = new StringBuilder();
+                    for (int i = 0; i < address.getMaxAddressLineIndex(); i++) {
+                        addr.append(address.getAddressLine(i) + "\n");
+                    }
+                    send(addr.toString());
+                }
+            } else if (addresses.size() == 1) {
+                GeoManager.launchExternal(addresses.get(0).getLatitude() + "," + addresses.get(0).getLongitude());
+            }
+        } else {
+            send("No match for \"" + text + "\"");
+        }
+    }  
+    
     /** copy text to clipboard */
     private void copyToClipboard(String text) {
         try {

@@ -15,9 +15,8 @@ import com.googlecode.talkmyphone.XmppService;
 public class ContactsManager {
 
     // Contact searching
-    private final static String cellPhonePattern = "0[67]\\d{8,}";
-    private final static String internationalPrefix = "+33";
-
+    private final static String cellPhonePattern = "\\+*\\d+";
+    
     /**
      * Tries to get the contact display name of the specified phone number.
      * If not found, returns the argument.
@@ -195,17 +194,15 @@ public class ContactsManager {
         ArrayList<Phone> phones = getPhones(searchedText);
 
         for (Phone phone : phones) {
-            if (phone.isCellPhoneNumber) {
+            if (phone.type == Contacts.Phones.TYPE_MOBILE) {
                 res.add(phone);
             }
         }
 
-        // manage not french cell phones
+        // manage all phones number
         if (res.size() == 0) {
             for (Phone phone : phones) {
-                if (phone.type == Contacts.Phones.TYPE_MOBILE) {
-                    res.add(phone);
-                }
+                res.add(phone);
             }
         }
 
@@ -215,8 +212,7 @@ public class ContactsManager {
     public static String cleanPhoneNumber(String number) {
         return number.replace("(", "")
                      .replace(")", "")
-                     .replace(" ", "")
-                     .replace(internationalPrefix, "0");
+                     .replace(" ", "");
     }
 
     public static boolean isCellPhoneNumber(String number) {
